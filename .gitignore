@@ -13,4 +13,5 @@ figures/
 # OS
 .DS_Store
 Thumbs.db
+.vscode/
 
