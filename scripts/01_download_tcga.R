@@ -143,88 +143,161 @@ for (i in 1:n_batches) {
 files <- list.files("data/raw", pattern = "brca_se_batch_.*rds", full.names = TRUE)
 length(files) # check number of batch files
 
-# Load first batch
-brca_se_full <- readRDS(files[1])
+files <- sort(files)
 
-for (i in 2:length(files)) {
+meta_names <- lapply(files, function(f) {
+  se <- readRDS(f)
+  cn <- colnames(colData(se))
+  rm(se)
+  gc()
+  return(cn)
+})
 
-  cat("Merging batch", i, "\n")
 
-  se_next <- readRDS(files[i])
+# Get list of metadata data.frames:there difference in the metadata columns across batches, so we will need to handle that when combining SE objects
+meta_list <- lapply(se_list, function(se) as.data.frame(colData(se)))
 
-  # Align metadata columns
-  common_cols <- intersect(
-    colnames(colData(brca_se_full)),
-    colnames(colData(se_next))
-  )
+# Get intersection of column names
+common_cols <- Reduce(intersect, lapply(meta_list, colnames))
+length(common_cols)#85
 
-  colData(brca_se_full) <- colData(brca_se_full)[, common_cols, drop = FALSE]
-  colData(se_next) <- colData(se_next)[, common_cols, drop = FALSE]
+#Build Metadata Incrementally
+meta_full <- NULL
 
-  brca_se_full <- cbind(brca_se_full, se_next)
-
-  rm(se_next)
+for (f in files) {
+  cat("Processing:", f, "\n")
+  
+  se <- readRDS(f)
+  meta <- as.data.frame(colData(se))
+  
+  # Keep only common columns safely
+  meta <- meta[, intersect(colnames(meta), common_cols), drop = FALSE]
+  
+  meta_full <- rbind(meta_full, meta)
+  
+  rm(se, meta)
   gc()
 }
 
-saveRDS(brca_se_full, "data/raw/tmp_merge.rds")
-rm(brca_se_full)
-gc()
-
-brca_se_full <- readRDS("data/processed/tmp_merge.rds")
-dim(brca_se_full)
+dim(meta_full)#1111   76
+saveRDS(meta_full, "data/raw/meta_full.rds")
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-se_list <- lapply(files, readRDS)
-
-#meta data has different columns across batches, so we will need to handle that when combining SE objects
-lapply(se_list, function(x) length(colnames(colData(x))))
-
-meta_names <- lapply(se_list, function(x) colnames(colData(x)))
-unique(unlist(meta_names))
-
-common_cols <- Reduce(intersect, meta_names)
-length(common_cols)
-
-se_list_aligned <- lapply(se_list, function(se) {
-  colData(se) <- colData(se)[, common_cols, drop = FALSE]
-  return(se)
+#Combine Expression Matrix
+# Get common genes first
+gene_lists <- lapply(files, function(f) {
+  se <- readRDS(f)
+  g <- rownames(se)
+  rm(se)
+  gc()
+  return(g)
 })
 
-brca_se_full <- do.call(cbind, se_list_aligned) # Combine all SE objects into one by column-binding (samples)
-#~60,000 genes × ~200 samples; same genes in each batch, so coulmn binding is appropriate
-dim(brca_se_full) # check dimensions of combined SE 
-ncol(brac)
-#check for duplicates
+common_genes <- Reduce(intersect, gene_lists)
+length(common_genes)#60660
+
+expr_full <- NULL
+
+for (f in files) {
+  cat("Processing:", f, "\n")
+  
+  se <- readRDS(f)
+  mat <- assay(se)
+  
+  mat <- mat[common_genes, , drop = FALSE]
+  
+  expr_full <- cbind(expr_full, mat)
+  
+  rm(se, mat)
+  gc()
+}
+
+dim(expr_full)#60660  1111
+saveRDS(expr_full, "data/raw/expr_full.rds")
+
+
+#Keep genes with counts ≥10 in at least 10% of samples
+
+keep_genes <- rowSums(expr_full >= 10) >= (0.10 * ncol(expr_full))
+
+expr_filtered <- expr_full[keep_genes, ]
+
+dim(expr_filtered)#26006  1111
+
+#Rebuild Clean SummarizedExperiment
+
+brca_se_clean <- SummarizedExperiment(
+  assays = list(counts = expr_filtered),
+  colData = meta_full
+)
+
+brca_se_clean
+saveRDS(brca_se_clean, "data/processed/brca_se_clean.rds")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
