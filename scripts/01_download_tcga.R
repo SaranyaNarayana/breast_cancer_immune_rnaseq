@@ -33,9 +33,17 @@ log_message <- function(msg) {
 }
 
 
+
 ## -----------------------------
-## 1. Load libraries
+## 1. Install and load libraries
 ## -----------------------------
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("TCGAbiolinks")
+BiocManager::install("SummarizedExperiment")
+install.packages(c("dplyr", "tibble"))
+
 suppressPackageStartupMessages({
   library(TCGAbiolinks)
   library(SummarizedExperiment)
@@ -75,20 +83,20 @@ query <- GDCquery(
 ## -----------------------------
 ## 4. Download data
 ## -----------------------------
-cat("===== GDC download =====\n")
-log_message("Starting GDC download")
+# cat("===== GDC download =====\n")
+# log_message("Starting GDC download")
 
-GDCdownload(
-  query,
-  method = "api",
-  files.per.chunk = 20
-)
+# GDCdownload(
+#   query,
+#   method = "api",
+#   files.per.chunk = 20
+# )
 
-log_message("Finished GDC download")
+# log_message("Finished GDC download")
 
 
 #if downloaded already use the below code to prepare the data
-#GDCdownload(query, method = "api", files.per.chunk = 20, directory = "GDCdata/")
+GDCdownload(query, method = "api", files.per.chunk = 20, directory = "GDCdata/")
 
 total_files <-nrow(query$results[[1]])
 cat("Total number of files:", total_files, "\n")
@@ -105,22 +113,66 @@ cat("Unique patient samples:",length(unique(query$results[[1]]$cases)), "\n")
 batch_size <- 200
 n_batches <- ceiling(total_files / batch_size)
 
+
 for (i in 1:n_batches) {
-  
+
   cat("Processing batch", i, "of", n_batches, "\n")
-  
+
   start_idx <- ((i - 1) * batch_size) + 1
   end_idx <- min(i * batch_size, total_files)
-  
+
   query_batch <- query
   query_batch$results[[1]] <- query$results[[1]][start_idx:end_idx, ]
-  
+
   se_batch <- GDCprepare(query_batch)
-  
-  saveRDS(se_batch, file = paste0("data/raw/brca_se_batch_", i, ".rds"))
+
+  saveRDS(
+    se_batch,
+    file = paste0("data/raw/brca_se_batch_", i, ".rds")
+  )
+
+  #CRITICAL PART_Free meemory after each batch to avoid OOM errors
+  rm(se_batch, query_batch)
+  gc()
+
+  cat("Finished batch", i, "\n")
 }
 
 
+#merging progressively due to memory constraints, we will read in the batch files and combine them into one SE object
+files <- list.files("data/raw", pattern = "brca_se_batch_.*rds", full.names = TRUE)
+length(files) # check number of batch files
+
+# Load first batch
+brca_se_full <- readRDS(files[1])
+
+for (i in 2:length(files)) {
+
+  cat("Merging batch", i, "\n")
+
+  se_next <- readRDS(files[i])
+
+  # Align metadata columns
+  common_cols <- intersect(
+    colnames(colData(brca_se_full)),
+    colnames(colData(se_next))
+  )
+
+  colData(brca_se_full) <- colData(brca_se_full)[, common_cols, drop = FALSE]
+  colData(se_next) <- colData(se_next)[, common_cols, drop = FALSE]
+
+  brca_se_full <- cbind(brca_se_full, se_next)
+
+  rm(se_next)
+  gc()
+}
+
+saveRDS(brca_se_full, "data/raw/tmp_merge.rds")
+rm(brca_se_full)
+gc()
+
+brca_se_full <- readRDS("data/processed/tmp_merge.rds")
+dim(brca_se_full)
 
 
 
@@ -142,10 +194,61 @@ for (i in 1:n_batches) {
 
 
 
-brca_se <- GDCprepare(query)
 
-## Save raw object for reproducibility
-saveRDS(brca_se, "data/raw/TCGA_BRCA_STAR_counts_SE.rds")
+
+
+
+
+
+
+
+
+
+se_list <- lapply(files, readRDS)
+
+#meta data has different columns across batches, so we will need to handle that when combining SE objects
+lapply(se_list, function(x) length(colnames(colData(x))))
+
+meta_names <- lapply(se_list, function(x) colnames(colData(x)))
+unique(unlist(meta_names))
+
+common_cols <- Reduce(intersect, meta_names)
+length(common_cols)
+
+se_list_aligned <- lapply(se_list, function(se) {
+  colData(se) <- colData(se)[, common_cols, drop = FALSE]
+  return(se)
+})
+
+brca_se_full <- do.call(cbind, se_list_aligned) # Combine all SE objects into one by column-binding (samples)
+#~60,000 genes × ~200 samples; same genes in each batch, so coulmn binding is appropriate
+dim(brca_se_full) # check dimensions of combined SE 
+ncol(brac)
+#check for duplicates
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# brca_se <- GDCprepare(query)
+
+# ## Save raw object for reproducibility
+# saveRDS(brca_se, "data/raw/TCGA_BRCA_STAR_counts_SE.rds")
 
 ## -----------------------------
 ## 6. Extract count matrix
