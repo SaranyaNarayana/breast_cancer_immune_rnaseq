@@ -139,6 +139,11 @@ for (i in 1:n_batches) {
 }
 
 
+
+
+## -----------------------------
+## 5a. Extract metadata from batch files
+## -----------------------------
 #merging progressively due to memory constraints, we will read in the batch files and combine them into one SE object
 files <- list.files("data/raw", pattern = "brca_se_batch_.*rds", full.names = TRUE)
 length(files) # check number of batch files
@@ -184,7 +189,11 @@ saveRDS(meta_full, "data/raw/meta_full.rds")
 
 
 
-#Combine Expression Matrix
+
+## -----------------------------
+## 5b. Extract expression matrix from batch files
+## -----------------------------
+
 # Get common genes first
 gene_lists <- lapply(files, function(f) {
   se <- readRDS(f)
@@ -217,6 +226,10 @@ dim(expr_full)#60660  1111
 saveRDS(expr_full, "data/raw/expr_full.rds")
 
 
+
+## -----------------------------
+## 5c. Basic QC: remove low-count genes
+## -----------------------------
 #Keep genes with counts ≥10 in at least 10% of samples
 
 keep_genes <- rowSums(expr_full >= 10) >= (0.10 * ncol(expr_full))
@@ -225,153 +238,44 @@ expr_filtered <- expr_full[keep_genes, ]
 
 dim(expr_filtered)#26006  1111
 
-#Rebuild Clean SummarizedExperiment
+
+
+## -----------------------------
+## 5d. Rebuild Clean SummarizedExperiment and save  processed data
+## -----------------------------
 
 brca_se_clean <- SummarizedExperiment(
   assays = list(counts = expr_filtered),
   colData = meta_full
 )
 
+dim(brca_se_clean)#26006  1111
+
+
+
+#Structural check-Gene expression data
+
 brca_se_clean
-saveRDS(brca_se_clean, "data/processed/brca_se_clean.rds")
+assayNames(brca_se_clean)
+dim(assay(brca_se_clean))
+dim(colData(brca_se_clean))
+head(colData(brca_se_clean)[,1:5])
 
 
+#Structural check-Meta data
+dim(colData(brca_se_clean))
+colnames(colData(brca_se_clean))[1:10]
+table(colData(brca_se_clean)$sample_type)
+all(colnames(brca_se_clean) == rownames(colData(brca_se_clean)))
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# brca_se <- GDCprepare(query)
-
-# ## Save raw object for reproducibility
-# saveRDS(brca_se, "data/raw/TCGA_BRCA_STAR_counts_SE.rds")
 
 ## -----------------------------
-## 6. Extract count matrix
+## 6. Save processed data
 ## -----------------------------
-counts <- assay(brca_se)
+saveRDS(brca_se_clean, "data/processed/TCGA_BRCA_SE_clean.rds")
+write.csv(colData(brca_se_clean), "data/processed/TCGA_BRCA_metadata.csv", row.names = FALSE)
 
-## Clean gene IDs (remove version numbers)
-rownames(counts) <- gsub("\\..*", "", rownames(counts))
-
-## -----------------------------
-## 7. Extract metadata
-## -----------------------------
-metadata <- colData(brca_se) |> 
-  as.data.frame() |> 
-  rownames_to_column("sample_id")
-
-## Keep clinically relevant variables
-metadata_clean <- metadata |> 
-  select(
-    sample_id,
-    patient = patient,
-    gender,
-    age_at_diagnosis,
-    tumor_stage,
-    vital_status,
-    days_to_death,
-    days_to_last_follow_up,
-    er_status_by_ihc,
-    pr_status_by_ihc,
-    her2_status_by_ihc
-  )
-
-## -----------------------------
-## 8. Basic QC: remove low-count genes
-## -----------------------------
-keep_genes <- rowSums(counts >= 10) >= 10
-counts_filtered <- counts[keep_genes, ]
-
-## -----------------------------
-## 9. Save processed data
-## -----------------------------
-saveRDS(counts_filtered, "data/processed/TCGA_BRCA_counts_filtered.rds")
-write.csv(metadata_clean, "data/processed/TCGA_BRCA_metadata.csv", row.names = FALSE)
-
-## -----------------------------
-## 10. Summary output
-## -----------------------------
-message("TCGA BRCA preprocessing complete")
-message("Samples: ", ncol(counts_filtered))
-message("Genes retained: ", nrow(counts_filtered))
 
 ## -----------------------------
 ## Close log
@@ -379,3 +283,4 @@ message("Genes retained: ", nrow(counts_filtered))
 sink(type = "message")
 sink(type = "output")
 close(log_file)
+
