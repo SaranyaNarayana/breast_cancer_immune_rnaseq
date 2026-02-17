@@ -266,7 +266,7 @@ head(colData(brca_se_clean)[,1:5])
 dim(colData(brca_se_clean))
 colnames(colData(brca_se_clean))[1:10]
 table(colData(brca_se_clean)$sample_type)
-all(colnames(brca_se_clean) == rownames(colData(brca_se_clean)))
+all(colnames(brca_se_clean) == rownames(colData(brca_se_clean)))#checking the colnames of the SE object match the rownames of the metadata in the right order.
 
 
 
