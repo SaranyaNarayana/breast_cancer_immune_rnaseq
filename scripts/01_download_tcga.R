@@ -212,7 +212,7 @@ for (f in files) {
   cat("Processing:", f, "\n")
   
   se <- readRDS(f)
-  mat <- assay(se)  #get the gene expression matrix
+  mat <- assay(se)  #get the gene expression matrix with all available assays
   
   mat <- mat[common_genes, , drop = FALSE]
   
@@ -228,28 +228,15 @@ saveRDS(expr_full, "data/raw/expr_full.rds")
 
 
 ## -----------------------------
-## 5c. Basic QC: remove low-count genes
-## -----------------------------
-#Keep genes with counts ≥10 in at least 10% of samples
-
-keep_genes <- rowSums(expr_full >= 10) >= (0.10 * ncol(expr_full))
-
-expr_filtered <- expr_full[keep_genes, ]
-
-dim(expr_filtered)#26006  1111
-
-
-
-## -----------------------------
-## 5d. Rebuild Clean SummarizedExperiment and save  processed data
+## 5c. Rebuild Clean SummarizedExperiment and save  processed data
 ## -----------------------------
 
 brca_se_clean <- SummarizedExperiment(
-  assays = list(counts = expr_filtered),
+  assays = list(counts = expr_full),
   colData = meta_full
 )
+cat("Dim_brca_se_clean:", dim(brca_se_clean), "\n")
 
-dim(brca_se_clean)#26006  1111
 
 
 
@@ -273,7 +260,7 @@ all(colnames(brca_se_clean) == rownames(colData(brca_se_clean)))#checking the co
 ## -----------------------------
 ## 6. Save processed data
 ## -----------------------------
-saveRDS(brca_se_clean, "data/processed/TCGA_BRCA_SE_clean.rds")
+saveRDS(brca_se_clean, "data/processed/TCGA_BRCA_SE_clean_all_assay.rds")
 write.csv(colData(brca_se_clean), "data/processed/TCGA_BRCA_metadata.csv", row.names = FALSE)
 
 
