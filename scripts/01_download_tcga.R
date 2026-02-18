@@ -144,7 +144,7 @@ for (i in 1:n_batches) {
 ## -----------------------------
 ## 5a. Extract metadata from batch files
 ## -----------------------------
-#merging progressively due to memory constraints, we will read in the batch files and combine them into one SE object
+#merging progressively due to memory constraints, read in the batch files and combine them into one SE object
 files <- list.files("data/raw", pattern = "brca_se_batch_.*rds", full.names = TRUE)
 length(files) # check number of batch files
 
@@ -212,7 +212,7 @@ for (f in files) {
   cat("Processing:", f, "\n")
   
   se <- readRDS(f)
-  mat <- assay(se)
+  mat <- assay(se)  #get the gene expression matrix
   
   mat <- mat[common_genes, , drop = FALSE]
   
