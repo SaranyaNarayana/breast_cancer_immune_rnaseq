@@ -188,80 +188,104 @@ dim(meta_full)#1111   76
 saveRDS(meta_full, "data/raw/meta_full.rds")
 
 
-
-
 ## -----------------------------
 ## 5b. Extract expression matrix from batch files
 ## -----------------------------
 
-# Get common genes first
+# Get assay names
+se_test <- readRDS(files[1])
+assay_names <- assayNames(se_test)
+assay_names
+
+# Get common genes
 gene_lists <- lapply(files, function(f) {
   se <- readRDS(f)
   g <- rownames(se)
-  rm(se)
-  gc()
-  return(g)
+  rm(se); gc()
+  g
 })
 
 common_genes <- Reduce(intersect, gene_lists)
-length(common_genes)#60660
 
-expr_full <- NULL
 
-for (f in files) {
-  cat("Processing:", f, "\n")
+# Function to merge ONE assay 
+merge_assay <- function(assay_name, files, common_genes) {
   
-  se <- readRDS(f)
-  mat <- assay(se)  #get the gene expression matrix with all available assays
+  cat("Merging:", assay_name, "\n")
   
-  mat <- mat[common_genes, , drop = FALSE]
+  assay_full <- NULL
   
-  expr_full <- cbind(expr_full, mat)
+  for (f in files) {
+    cat("  Processing:", f, "\n")
+    
+    se <- readRDS(f)
+    
+    mat <- assay(se, assay_name)
+    mat <- mat[common_genes, , drop = FALSE]
+    
+    assay_full <- cbind(assay_full, mat)
+    
+    rm(se, mat)
+    gc()
+  }
   
-  rm(se, mat)
-  gc()
+  return(assay_full)
 }
 
-dim(expr_full)#60660  1111
-saveRDS(expr_full, "data/raw/expr_full.rds")
+# Merge unstranded assay
+
+unstranded_full <- merge_assay("unstranded", files, common_genes)
+saveRDS(unstranded_full, "data/raw/unstranded_full.rds")
+rm(unstranded_full); gc()
+
+# Merge TPM assay
+tpm_full <- merge_assay("tpm_unstrand", files, common_genes)
+saveRDS(tpm_full, "data/raw/tpm_full.rds")
+rm(tpm_full); gc()
 
 
 
 ## -----------------------------
-## 5c. Rebuild Clean SummarizedExperiment and save  processed data
+## 5c. Rebuild Clean SummarizedExperiment and save  processed data (60k × 1111 × 2 assays)
 ## -----------------------------
+unstranded_full <- readRDS("data/raw/unstranded_full.rds")
+tpm_full <- readRDS("data/raw/tpm_full.rds")
 
-brca_se_clean <- SummarizedExperiment(
-  assays = list(counts = expr_full),
+brca_rna_data <- SummarizedExperiment(
+  assays = list(
+    unstranded = unstranded_full,
+    tpm_unstrand = tpm_full
+  ),
   colData = meta_full
 )
-cat("Dim_brca_se_clean:", dim(brca_se_clean), "\n")
-
+cat("Dim_brca_rna_data:", dim(brca_rna_data), "\n")
+saveRDS(brca_rna_data,
+        "data/raw/TCGA_BRCA_rna_data.rds")
 
 
 
 #Structural check-Gene expression data
-
-brca_se_clean
-assayNames(brca_se_clean)
-dim(assay(brca_se_clean))
-dim(colData(brca_se_clean))
-head(colData(brca_se_clean)[,1:5])
+cat("===== Structural check-Gene expression data =====\n")
+brca_rna_data
+assayNames(brca_rna_data)
+cat("Dim unstranded:", dim(assay(brca_rna_data, "unstranded")), "\n")
+cat("Dim tpm_unstrand:", dim(assay(brca_rna_data, "tpm_unstrand")), "\n") 
 
 
 #Structural check-Meta data
-dim(colData(brca_se_clean))
-colnames(colData(brca_se_clean))[1:10]
-table(colData(brca_se_clean)$sample_type)
-all(colnames(brca_se_clean) == rownames(colData(brca_se_clean)))#checking the colnames of the SE object match the rownames of the metadata in the right order.
+cat("===== Structural check-Meta data =====\n")
+cat("Dim meta data:", dim(colData(brca_rna_data)), "\n")
+colnames(colData(brca_rna_data))[1:10]
+table(colData(brca_rna_data)$sample_type)
+all(colnames(brca_rna_data) == rownames(colData(brca_rna_data)))#checking the colnames of the SE object match the rownames of the metadata in the right order.
 
 
 
 ## -----------------------------
 ## 6. Save processed data
 ## -----------------------------
-saveRDS(brca_se_clean, "data/processed/TCGA_BRCA_SE_clean_all_assay.rds")
-write.csv(colData(brca_se_clean), "data/processed/TCGA_BRCA_metadata.csv", row.names = FALSE)
+saveRDS(brca_rna_data, "data/processed/TCGA_BRCA_rna_data.rds")
+write.csv(colData(brca_rna_data), "data/processed/TCGA_BRCA_metadata_rna.csv", row.names = FALSE)
 
 
 ## -----------------------------
