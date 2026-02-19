@@ -57,23 +57,23 @@ cat("Loaded clean SummarizedExperiment with dimensions:", dim(BRCA_rna_data), "\
 
 
 
-## -----------------------------
-## 2. Extract and process clinical data 
-## -----------------------------
+## --------------------------------------------------------
+## 2. Extract, process and quality control for clinical data 
+## ----------------------------------------------------------
 clinical <- colData(BRCA_rna_data) %>%
   as.data.frame() 
 cat("Extracted clinical data with dimensions:", dim(clinical), "\n")
 colnames(clinical)
 
-cat("Unique patients in clinical data:", length(unique(clinical$patient)), "\n")
-cat("Unique barcodes in clinical data:", length(unique(clinical$barcode)), "\n")
 
 list_cols <- sapply(clinical, is.list)
 clinical_1 <- clinical[, !list_cols]
 
 write.csv(clinical_1, "data/processed/clinical_1.csv", row.names = FALSE)
 
-# Extract key variables
+##------------------------------------------------
+## 5a. Extract key variables
+##------------------------------------------------
 clinical_clean <- clinical %>%
   select(
     patient = patient,
@@ -95,19 +95,40 @@ clinical_clean <- clinical %>%
   )
 
 cat("clinical_clean data with dimensions:", dim(clinical_clean), "\n")
+head(clinical_clean)
+
+##--------------------------------------------------
+## 5b. Remove duplicate rows based on patient and barcode
+##--------------------------------------------------
+
+cat("Unique patients in clinical data:", length(unique(clinical_clean$patient)), "\n")
+cat("Unique barcodes in clinical data:", length(unique(clinical_clean$barcode)), "\n")
+
+clinical_clean <- clinical_clean %>%
+  distinct(patient, barcode, .keep_all = TRUE)
 
 
-cat("ajcc_pathologic_stage distribution:\n")
-as.data.frame(table(clinical$ajcc_pathologic_stage, useNA="ifany"))
 
-clinical %>%
-           count(ajcc_pathologic_stage, .drop=FALSE) 
+
+##---------------------------------------------------
+##check the distribution and levels of key variables 
+##---------------------------------------------------
+
+#pathologic_stage
+cat("pathologic_stage distribution:\n")
+clinical_clean %>%
+           count(pathologic_stage, .drop=FALSE) 
  
-str(clinical$ajcc_pathologic_stage)
+str(clinical_clean$pathologic_stage)
 
+#PAM50_Subtype
+cat("PAM50_Subtype distribution:\n")
+clinical_clean %>%
+           count(PAM50_Subtype, .drop=FALSE) 
 
+#primary_diagnosis
 cat("primary diagnosis distribution:\n")
-clinical %>%
+clinical_clean %>%
            count(primary_diagnosis, .drop=FALSE)
 
 
