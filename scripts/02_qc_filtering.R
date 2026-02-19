@@ -65,26 +65,66 @@ clinical <- colData(BRCA_rna_data) %>%
 cat("Extracted clinical data with dimensions:", dim(clinical), "\n")
 colnames(clinical)
 
+cat("Unique patients in clinical data:", length(unique(clinical$patient)), "\n")
+cat("Unique barcodes in clinical data:", length(unique(clinical$barcode)), "\n")
+
+list_cols <- sapply(clinical, is.list)
+clinical_1 <- clinical[, !list_cols]
+
+write.csv(clinical_1, "data/processed/clinical_1.csv", row.names = FALSE)
+
 # Extract key variables
 clinical_clean <- clinical %>%
-  dplyr::select(
+  select(
     patient = patient,
     barcode = barcode,
     sample_type = sample_type,
     age_at_diagnosis = age_at_diagnosis,
+    race= race,
+    gender=gender,
+    country_residence = country_of_residence_at_enrollment,
     vital_status = vital_status,
     days_to_death = days_to_death,
-    days_to_last_follow_up = days_to_last_follow_up,
-    tumor_stage = tumor_stage,
+    days_to_last_follow_up = days_to_last_follow_up, #patient alive
+    paper_pathologic_stage=paper_pathologic_stage,
     pathologic_stage = ajcc_pathologic_stage,
-    grade = neoplasm_histologic_grade,
-    ER_status = paper_BRCA_Subtype_PAM50,  # Adjust based on actual column names
-    PR_status = paper_PR_Status,
-    HER2_status = paper_HER2_Final_Status,
-    PAM50 = paper_BRCA_Subtype_PAM50
+    ajcc_pathologic_t = ajcc_pathologic_t,
+    ajcc_pathologic_n = ajcc_pathologic_n,
+    ajcc_pathologic_m = ajcc_pathologic_m,
+    PAM50_Subtype = paper_BRCA_Subtype_PAM50
   )
 
-cat("Processed clinical data with dimensions:", dim(clinical_clean), "\n")
+cat("clinical_clean data with dimensions:", dim(clinical_clean), "\n")
+
+
+cat("ajcc_pathologic_stage distribution:\n")
+as.data.frame(table(clinical$ajcc_pathologic_stage, useNA="ifany"))
+
+clinical %>%
+           count(ajcc_pathologic_stage, .drop=FALSE) 
+ 
+str(clinical$ajcc_pathologic_stage)
+
+
+cat("primary diagnosis distribution:\n")
+clinical %>%
+           count(primary_diagnosis, .drop=FALSE)
+
+
+
+
+
+table(clinical$tumor_descriptor)
+
+str(clinical$tumor_descriptor)
+
+
+table(clinical_clean$paper_BRCA_Subtype_PAM50)
+table(clinical_clean$ajcc_pathologic_stage)
+table(clinical_clean$vital_status)
+
+
+
 
 
 
