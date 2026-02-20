@@ -10,9 +10,7 @@
 ############################################################
 
 ############################################################
-getwd()
 setwd("/home/sara/BioInfo_projects/breast_cancer_immune_rnaseq/")
-
 ############################################################
 
 #-----------------------------------
@@ -109,9 +107,8 @@ clinical_clean <- clinical_clean %>%
 
 
 
-
 ##---------------------------------------------------
-##check the distribution and levels of key variables 
+##5c. check the distribution and levels of key variables 
 ##---------------------------------------------------
 
 #pathologic_stage
@@ -145,7 +142,9 @@ table(clinical_clean$ajcc_pathologic_stage)
 table(clinical_clean$vital_status)
 
 
-
+##--------------------------------------------------
+## 5d. PAM50 Subtype distribution across pathologic stages
+##--------------------------------------------------
 
 
 
