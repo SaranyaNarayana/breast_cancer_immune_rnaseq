@@ -60,6 +60,7 @@ cat("Loaded clean SummarizedExperiment with dimensions:", dim(BRCA_rna_data), "\
 ## ----------------------------------------------------------
 clinical <- colData(BRCA_rna_data) %>%
   as.data.frame() 
+
 cat("Extracted clinical data with dimensions:", dim(clinical), "\n")
 colnames(clinical)
 
@@ -102,8 +103,16 @@ head(clinical_clean)
 cat("Unique patients in clinical data:", length(unique(clinical_clean$patient)), "\n")
 cat("Unique barcodes in clinical data:", length(unique(clinical_clean$barcode)), "\n")
 
-clinical_clean <- clinical_clean %>%
-  distinct(patient, barcode, .keep_all = TRUE)
+table(table(clinical_clean$patient))
+
+clinical_unique_1 <- clinical_clean[!duplicated(clinical_clean$patient), ]
+dim(clinical_unique_1)
+
+clinical_unique <- clinical_clean %>%
+  distinct(patient, .keep_all = TRUE)
+  
+cat("clinical data of unique patients:", length(unique(clinical_unique$patient)), "\n")
+cat("clinical data of unique barcodes:", length(unique(clinical_unique$barcode)), "\n")
 
 
 
