@@ -3,6 +3,12 @@
 # Project: Breast Cancer Immune Heterogeneity
 # Author: Saranya Narayana
 # Purpose:
+#   - Derive key variables from clinical data
+#   - Remove duplicate samples and ensure unique patient representation
+#   - Check distribution of key clinical variables and remove missing data if necessary
+
+
+
 #   - Quality control and filtering of TCGA-BRCA RNA-seq data
 #   - Prepare clean count matrix and metadata for downstream analysis
 #   - Save processed data for analysis
@@ -50,11 +56,6 @@ BRCA_rna_data <- readRDS("data/processed/TCGA_BRCA_rna_data.rds")
 cat("Loaded clean SummarizedExperiment with dimensions:", dim(BRCA_rna_data), "\n")
 
 
-# meta_full <- readRDS("data/raw/meta_full.rds")
-# cat("Loaded metadata with dimensions:", dim(meta_full), "\n")
-
-
-
 ## --------------------------------------------------------
 ## 2. Extract, process and quality control for clinical data 
 ## ----------------------------------------------------------
@@ -71,7 +72,7 @@ clinical_1 <- clinical[, !list_cols]
 write.csv(clinical_1, "data/processed/clinical_1.csv", row.names = FALSE)
 
 ##------------------------------------------------
-## 5a. Extract key variables
+## 2a. Extract key variables
 ##------------------------------------------------
 clinical_clean <- clinical %>%
   select(
@@ -97,16 +98,13 @@ cat("clinical_clean data with dimensions:", dim(clinical_clean), "\n")
 head(clinical_clean)
 
 ##--------------------------------------------------
-## 5b. Remove duplicate rows based on patient and barcode
+## 2b. Remove duplicate rows based on patient and barcode
 ##--------------------------------------------------
 
 cat("Unique patients in clinical data:", length(unique(clinical_clean$patient)), "\n")
 cat("Unique barcodes in clinical data:", length(unique(clinical_clean$barcode)), "\n")
 
 table(table(clinical_clean$patient))
-
-clinical_unique_1 <- clinical_clean[!duplicated(clinical_clean$patient), ]
-dim(clinical_unique_1)
 
 clinical_unique <- clinical_clean %>%
   distinct(patient, .keep_all = TRUE)
@@ -115,27 +113,25 @@ cat("clinical data of unique patients:", length(unique(clinical_unique$patient))
 cat("clinical data of unique barcodes:", length(unique(clinical_unique$barcode)), "\n")
 
 
+##---------------------------------------------------
+##2c. Handle missing data and check distribution of key clinical variables
+##---------------------------------------------------
+cat("Summary statistics of clinical_clean data:\n")
+summary(clinical_clean)
 
-##---------------------------------------------------
-##5c. check the distribution and levels of key variables 
-##---------------------------------------------------
 
 #pathologic_stage
 cat("pathologic_stage distribution:\n")
-clinical_clean %>%
+clinical_unique %>%
            count(pathologic_stage, .drop=FALSE) 
  
-str(clinical_clean$pathologic_stage)
+str(clinical_unique$pathologic_stage)
 
 #PAM50_Subtype
 cat("PAM50_Subtype distribution:\n")
-clinical_clean %>%
+clinical_unique %>%
            count(PAM50_Subtype, .drop=FALSE) 
 
-#primary_diagnosis
-cat("primary diagnosis distribution:\n")
-clinical_clean %>%
-           count(primary_diagnosis, .drop=FALSE)
 
 
 
@@ -160,3 +156,7 @@ table(clinical_clean$vital_status)
 
   select(-c("barcode", "sample_type", "project_id", "data_category", "data_type", "platform")) %>%
   distinct() # Remove duplicate rows
+
+
+#Then subset expression matrix:
+  expr_unique <- expr[, clinical_unique$barcode]
