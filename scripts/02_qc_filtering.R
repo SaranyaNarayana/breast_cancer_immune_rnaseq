@@ -116,6 +116,17 @@ cat("clinical data of unique barcodes:", length(unique(clinical_unique$barcode))
 ##---------------------------------------------------
 ##2c. Handle missing data and check distribution of key clinical variables
 ##---------------------------------------------------
+
+#check the missing data in clinical_clean
+cat("Missing data summary for clinical_clean:\n")
+missing_summary <- clinical_clean %>%
+  summarise_all(~ sum(is.na(.))) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
+  mutate(missing_percentage = (missing_count / nrow(clinical_clean)) * 100) %>% 
+  arrange(desc(missing_count))
+
+print(missing_summary)
+
 cat("Summary statistics of clinical_clean data:\n")
 summary(clinical_clean)
 
