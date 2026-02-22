@@ -82,7 +82,6 @@ clinical_clean <- clinical %>%
     age_at_diagnosis = age_at_diagnosis,
     race= race,
     gender=gender,
-    country_residence = country_of_residence_at_enrollment,
     vital_status = vital_status,
     days_to_death = days_to_death,
     days_to_last_follow_up = days_to_last_follow_up, #patient alive
@@ -114,7 +113,7 @@ cat("clinical data of unique barcodes:", length(unique(clinical_unique$barcode))
 
 
 ##---------------------------------------------------
-## 4. Handle missing data and check distribution of key clinical variables
+## 4. Missing data summary
 ##---------------------------------------------------
 
 cat("Summary statistics of clinical_unique data:\n")
@@ -134,9 +133,43 @@ missing_summary <- clinical_unique %>%
 print(missing_summary)
 
 ##---------------------------------------------------------------------
-## 5. Handle missing age at diagnosis value
+## 5. Remove smaples with missing critical variables (vital status, pathologic stage, PAM50 subtype)
 ##---------------------------------------------------------------------
-cat("\nHandling missing age at diagnosis values:\n")
+cat("\nHandling missing values:\n")
+
+clinical_filtered <- clinical_unique %>%
+  filter(
+    !is.na(vital_status) & vital_status != "",
+    !is.na(gender) & gender != "",
+    !is.na(age_at_diagnosis),
+    !is.na(PAM50_Subtype) & PAM50_Subtype != ""
+  )
+cat("clinical data after filtering for missing values has dimensions:", dim(clinical_filtered), "\n")
+cat ("Number of removed samples:", nrow(clinical_unique) - nrow(clinical_filtered), "\n")
+
+
+missing_summary <- clinical_filtered  %>%
+  summarise_all(~ sum(is.na(.))) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
+  mutate(missing_percentage = (missing_count / nrow(clinical_unique)) * 100) %>% 
+  arrange(desc(missing_count))
+
+print(missing_summary)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
