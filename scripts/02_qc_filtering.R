@@ -72,7 +72,7 @@ clinical_1 <- clinical[, !list_cols]
 write.csv(clinical_1, "data/processed/clinical_1.csv", row.names = FALSE)
 
 ##------------------------------------------------
-## 2a. Extract key variables
+## 3. Extract key clinical variables
 ##------------------------------------------------
 clinical_clean <- clinical %>%
   select(
@@ -98,7 +98,7 @@ cat("clinical_clean data with dimensions:", dim(clinical_clean), "\n")
 head(clinical_clean)
 
 ##--------------------------------------------------
-## 2b. Remove duplicate rows based on patient and barcode
+## 3. Remove duplicate rows based on patient and barcode
 ##--------------------------------------------------
 
 cat("Unique patients in clinical data:", length(unique(clinical_clean$patient)), "\n")
@@ -114,21 +114,37 @@ cat("clinical data of unique barcodes:", length(unique(clinical_unique$barcode))
 
 
 ##---------------------------------------------------
-##2c. Handle missing data and check distribution of key clinical variables
+## 4. Handle missing data and check distribution of key clinical variables
 ##---------------------------------------------------
 
-#check the missing data in clinical_clean
-cat("Missing data summary for clinical_clean:\n")
-missing_summary <- clinical_clean %>%
+cat("Summary statistics of clinical_unique data:\n")
+summary(clinical_unique)
+
+cat("structure of clinical_unique data:\n")
+str(clinical_unique)
+
+#check the missing data in clinical_unique
+cat("Missing data summary for clinical_unique:\n")
+missing_summary <- clinical_unique %>%
   summarise_all(~ sum(is.na(.))) %>%
   pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
-  mutate(missing_percentage = (missing_count / nrow(clinical_clean)) * 100) %>% 
+  mutate(missing_percentage = (missing_count / nrow(clinical_unique)) * 100) %>% 
   arrange(desc(missing_count))
 
 print(missing_summary)
 
-cat("Summary statistics of clinical_clean data:\n")
-summary(clinical_clean)
+##---------------------------------------------------------------------
+## 5. Handle missing age at diagnosis value
+##---------------------------------------------------------------------
+cat("\nHandling missing age at diagnosis values:\n")
+
+
+
+
+
+
+
+
 
 
 #pathologic_stage
