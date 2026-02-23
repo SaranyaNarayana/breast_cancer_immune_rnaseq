@@ -240,8 +240,101 @@ clinical_filtered_3 %>%
 
 
 
+##---------------------------------------------------------------------
+## 8. Clean and standardize pathologic_stage variable
+##---------------------------------------------------------------------
+cat("\nCleaning pathologic_stage variable:\n")
+
+# Check unique pathologic_stage values
+cat("Unique pathologic_stage values before cleaning:\n")
+unique(clinical_filtered_3$pathologic_stage)
+
+clinical_filtered_3 %>%
+  count(pathologic_stage, .drop=FALSE)
+  
+cat("Unique paper pathologic_stage values before cleaning:\n")
+unique(clinical_filtered_3$paper_pathologic_stage)
+
+clinical_filtered_3 %>%
+  count(paper_pathologic_stage, .drop=FALSE)
+
+#replace NA with unknown in paper_pathologic_stage
+clinical_filtered_3 <- clinical_filtered_3 %>%
+  mutate(paper_pathologic_stage = case_when(
+    is.na(paper_pathologic_stage) | paper_pathologic_stage=="NA" ~ "unknown",
+    TRUE ~ paper_pathologic_stage
+  ))
+
+cat("Unique paper pathologic_stage values after cleaning:\n")
+clinical_filtered_3 %>%
+  count(paper_pathologic_stage, .drop=FALSE)
 
 
+##---------------------------------------------------------------------
+## 9. Clean and standardize TNM variable
+##---------------------------------------------------------------------
+
+#ajcc_pathologic_t
+cat("\nCleaning TNM variables:\n")
+
+cat("Unique ajcc_pathologic_t values before cleaning:\n")
+table(clinical_filtered_3$ajcc_pathologic_t, useNA="ifany")
+
+clinical_filtered_3 <- clinical_filtered_3 %>%
+  mutate(ajcc_pathologic_t = case_when(
+    is.na(ajcc_pathologic_t) | ajcc_pathologic_t == "NA" ~ "unknown",
+    TRUE ~ ajcc_pathologic_t
+  ))  
+
+cat("Unique ajcc_pathologic_t values after cleaning:\n")
+table(clinical_filtered_3$ajcc_pathologic_t, useNA="ifany")
+
+#ajcc_pathologic_n
+
+cat("Unique ajcc_pathologic_n values before cleaning:\n")
+table(clinical_filtered_3$ajcc_pathologic_n, useNA="ifany")
+
+clinical_filtered_3 <- clinical_filtered_3 %>%
+  mutate(ajcc_pathologic_n = case_when(
+    is.na(ajcc_pathologic_n) | ajcc_pathologic_n == "NA" ~ "unknown",
+    TRUE ~ ajcc_pathologic_n
+  ))  
+
+cat("Unique ajcc_pathologic_n values after cleaning:\n")
+table(clinical_filtered_3$ajcc_pathologic_n, useNA="ifany")
+
+#ajcc_pathologic_m
+cat("Unique ajcc_pathologic_m values before cleaning:\n")
+table(clinical_filtered_3$ajcc_pathologic_m, useNA="ifany")
+
+clinical_filtered_3 <- clinical_filtered_3 %>%
+  mutate(ajcc_pathologic_m = case_when(
+    is.na(ajcc_pathologic_m) | ajcc_pathologic_m == "NA" ~ "unknown",
+    TRUE ~ ajcc_pathologic_m
+  ))
+cat("Unique ajcc_pathologic_m values after cleaning:\n")
+table(clinical_filtered_3$ajcc_pathologic_m, useNA="ifany")
+
+
+saveRDS(clinical_filtered_3, "data/mid_files/clinical_filtered_3.rds")
+
+##---------------------------------------------------------------------
+## 10. Remove uncessary variables
+##---------------------------------------------------------------------
+clinical_filtered_4 <- clinical_filtered_3 %>%
+  select(-c("pathologic_stage", "sample_type"))
+  
+cat("clinical_filtered_4 dimensions:", dim(clinical_filtered_4), "\n")#1034 17
+
+saveRDS(clinical_filtered_4, "data/mid_files/clinical_filtered_4.rds")
+
+
+
+
+##---------------------------------------------------------------------
+## Save final filtered clinical data and expression matrix
+##---------------------------------------------------------------------
+saveRDS(clinical_filtered_3, "data/mid_files/clinical_filtered_3.rds")
 saveRDS(unstranded_full, "data/mid_files/unstranded_full.rds")
 
 
