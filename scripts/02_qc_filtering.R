@@ -93,7 +93,7 @@ clinical_clean <- clinical %>%
     PAM50_Subtype = paper_BRCA_Subtype_PAM50
   )
 
-cat("clinical_clean data with dimensions:", dim(clinical_clean), "\n")
+cat("clinical_clean data with dimensions:", dim(clinical_clean), "\n")#1111 15
 head(clinical_clean)
 
 ##--------------------------------------------------
@@ -108,8 +108,8 @@ table(table(clinical_clean$patient))
 clinical_unique <- clinical_clean %>%
   distinct(patient, .keep_all = TRUE)
   
-cat("clinical data of unique patients:", length(unique(clinical_unique$patient)), "\n")
-cat("clinical data of unique barcodes:", length(unique(clinical_unique$barcode)), "\n")
+cat("clinical data of unique patients:", length(unique(clinical_unique$patient)), "\n")#1095 
+cat("clinical data of unique barcodes:", length(unique(clinical_unique$barcode)), "\n")#1095 
 
 
 ##---------------------------------------------------
@@ -148,14 +148,14 @@ clinical_filtered_1 <- clinical_unique %>%
     !is.na(age_at_diagnosis),
     !is.na(PAM50_Subtype) & PAM50_Subtype != ""
   )
-cat("clinical data after filtering for missing values has dimensions:", dim(clinical_filtered), "\n")
+cat("clinical data after filtering for missing values has dimensions:", dim(clinical_filtered_1), "\n")
 cat ("Number of removed samples:", nrow(clinical_unique) - nrow(clinical_filtered), "\n")
 
 
 missing_summary <- clinical_filtered_1  %>%
   summarise_all(~ sum(is.na(.))) %>%
   pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
-  mutate(missing_percentage = (missing_count / nrow(clinical_unique)) * 100) %>% 
+  mutate(missing_percentage = (missing_count / nrow(clinical_filtered_1)) * 100) %>% 
   arrange(desc(missing_count))
 
 print(missing_summary)
@@ -179,28 +179,64 @@ clinical_filtered_2 <- clinical_filtered_1 %>%
       TRUE ~ days_to_last_follow_up   
     )
   )
-saveRDS(clinical_filtered_2, "data/mid_files/clinical_filtered_2.rds")
+
+#create prorper survival time and event variables
+cat("\n vital status table for clinical_filtered_2:\n")
+table(clinical_filtered_2$vital_status)
+
+clinical_filtered_2 <- clinical_filtered_2 %>%
+  mutate(
+    # Overall survival time (in days)
+    OS_time = case_when(
+       vital_status == "Dead" & !is.na(days_to_death) ~ days_to_death,
+       vital_status == "Alive" & !is.na(days_to_last_follow_up)  ~ days_to_last_follow_up,
+      TRUE ~ NA_real_
+    ),
+    # Overall survival event (1=death, 0=censored/alive)
+    OS_event = case_when(
+      vital_status == "Alive" ~ 0,
+      vital_status == "Dead" ~ 1,
+      TRUE ~ NA_real_
+    ),
+    
+    # Convert to years and months for interpretability
+    OS_time_years = OS_time / 365.25,
+    OS_time_months = OS_time / 30.44
+  )
+
+cat("dimension of clinical_filtered_2:", dim(clinical_filtered_2), "\n")#1036 19 
+
+head(clinical_filtered_2)
+
+# Remove samples with invalid/missing survival data
+clinical_filtered_3 <- clinical_filtered_2 %>%
+  filter(!is.na(OS_time) & !is.na(OS_event))
+
+cat("dimension of clinical_filtered_3:", dim(clinical_filtered_3), "\n")#1034 19 
 
 
-#create prorper survivaal time and event variables
 
+cat("\nmissing_summary of clinical_filtered_3:\n")
+missing_summary <- clinical_filtered_3  %>%
+  summarise_all(~ sum(is.na(.))) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
+  mutate(missing_percentage = (missing_count / nrow(clinical_filtered_3)) * 100) %>% 
+  arrange(desc(missing_count))
 
+print(missing_summary)
 
+##---------------------------------------------------------------------
+## 7. Clean and standardize PAM50 Subtype variable
+##---------------------------------------------------------------------
 
+cat("\nCleaning PAM50 Subtype variable:\n")
 
+# Check unique PAM50 values
+cat("Unique PAM50_Subtype values before cleaning:\n")
+unique(clinical_filtered_3$PAM50_Subtype)
 
-
-
-
-
-
-
-
-
-
-
-
-
+clinical_filtered_3 %>%
+  count(PAM50_Subtype, .drop=FALSE)
 
 
 
