@@ -132,12 +132,16 @@ missing_summary <- clinical_unique %>%
 
 print(missing_summary)
 
+
+
+
 ##---------------------------------------------------------------------
-## 5. Remove smaples with missing critical variables (vital status, pathologic stage, PAM50 subtype)
+## 5. Remove smaples with missing critical variables 
+##(vital status, gender, age_at_diagnosis and PAM50 subtype; All 4 vairable must be present for a sample to be retained)
 ##---------------------------------------------------------------------
 cat("\nHandling missing values:\n")
 
-clinical_filtered <- clinical_unique %>%
+clinical_filtered_1 <- clinical_unique %>%
   filter(
     !is.na(vital_status) & vital_status != "",
     !is.na(gender) & gender != "",
@@ -148,7 +152,7 @@ cat("clinical data after filtering for missing values has dimensions:", dim(clin
 cat ("Number of removed samples:", nrow(clinical_unique) - nrow(clinical_filtered), "\n")
 
 
-missing_summary <- clinical_filtered  %>%
+missing_summary <- clinical_filtered_1  %>%
   summarise_all(~ sum(is.na(.))) %>%
   pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
   mutate(missing_percentage = (missing_count / nrow(clinical_unique)) * 100) %>% 
@@ -159,6 +163,50 @@ print(missing_summary)
 
 
 
+
+##---------------------------------------------------------------------
+## 6. Handle survival variables
+##---------------------------------------------------------------------
+cat("\nHandling survival variables:\n")
+
+#Fix mssing values in days_to_last_follow_up using days_to_death for patients who are alive but have missing follow-up time
+clinical_filtered_2 <- clinical_filtered_1 %>%
+  mutate(
+    days_to_last_follow_up=case_when(
+      is.na(days_to_last_follow_up) &
+      vital_status == "Alive" &
+      !is.na(days_to_death) ~ days_to_death,
+      TRUE ~ days_to_last_follow_up   
+    )
+  )
+saveRDS(clinical_filtered_2, "data/mid_files/clinical_filtered_2.rds")
+
+
+#create prorper survivaal time and event variables
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+saveRDS(unstranded_full, "data/mid_files/unstranded_full.rds")
 
 
 
