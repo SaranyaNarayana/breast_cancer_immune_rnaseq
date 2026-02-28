@@ -124,12 +124,23 @@ str(clinical_unique)
 
 #check the missing data in clinical_unique
 cat("Missing data summary for clinical_unique:\n")
-missing_summary <- clinical_unique %>%
+
+summarize_missing <- function(df){
+  results <- df %>%
   summarise_all(~ sum(is.na(.))) %>%
   pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
   mutate(missing_percentage = (missing_count / nrow(clinical_unique)) * 100) %>% 
   arrange(desc(missing_count))
+  return(result)
+}
 
+# missing_summary <- clinical_unique %>%
+#   summarise_all(~ sum(is.na(.))) %>%
+#   pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
+#   mutate(missing_percentage = (missing_count / nrow(clinical_unique)) * 100) %>% 
+#   arrange(desc(missing_count))
+
+missing_summary <-summarize_missing(clinical_unique)
 print(missing_summary)
 
 
@@ -327,13 +338,6 @@ clinical_filtered_4 <- clinical_filtered_3 %>%
 cat("clinical_filtered_4 dimensions:", dim(clinical_filtered_4), "\n")#1034 17
 
 saveRDS(clinical_filtered_4, "data/mid_files/clinical_filtered_4.rds")
-
-
-
-
-
-
-
 
 
 
