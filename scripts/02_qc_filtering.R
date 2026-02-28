@@ -126,19 +126,13 @@ str(clinical_unique)
 cat("Missing data summary for clinical_unique:\n")
 
 summarize_missing <- function(df){
-  results <- df %>%
+  result <- df %>%
   summarise_all(~ sum(is.na(.))) %>%
   pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
   mutate(missing_percentage = (missing_count / nrow(clinical_unique)) * 100) %>% 
   arrange(desc(missing_count))
   return(result)
 }
-
-# missing_summary <- clinical_unique %>%
-#   summarise_all(~ sum(is.na(.))) %>%
-#   pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
-#   mutate(missing_percentage = (missing_count / nrow(clinical_unique)) * 100) %>% 
-#   arrange(desc(missing_count))
 
 missing_summary <-summarize_missing(clinical_unique)
 print(missing_summary)
@@ -163,15 +157,8 @@ cat("clinical data after filtering for missing values has dimensions:", dim(clin
 cat ("Number of removed samples:", nrow(clinical_unique) - nrow(clinical_filtered), "\n")
 
 
-missing_summary <- clinical_filtered_1  %>%
-  summarise_all(~ sum(is.na(.))) %>%
-  pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
-  mutate(missing_percentage = (missing_count / nrow(clinical_filtered_1)) * 100) %>% 
-  arrange(desc(missing_count))
-
+missing_summary <-summarize_missing(clinical_filtered_1)
 print(missing_summary)
-
-
 
 
 
@@ -228,13 +215,10 @@ cat("dimension of clinical_filtered_3:", dim(clinical_filtered_3), "\n")#1034 19
 
 
 cat("\nmissing_summary of clinical_filtered_3:\n")
-missing_summary <- clinical_filtered_3  %>%
-  summarise_all(~ sum(is.na(.))) %>%
-  pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
-  mutate(missing_percentage = (missing_count / nrow(clinical_filtered_3)) * 100) %>% 
-  arrange(desc(missing_count))
 
+missing_summary <-summarize_missing(clinical_filtered_3)
 print(missing_summary)
+
 
 ##---------------------------------------------------------------------
 ## 7. Clean and standardize PAM50 Subtype variable
@@ -252,16 +236,16 @@ clinical_filtered_3 %>%
 
 
 ##---------------------------------------------------------------------
-## 8. Clean and standardize pathologic_stage variable
+## 8. Clean and standardize paper pathologic_stage variable
 ##---------------------------------------------------------------------
 cat("\nCleaning pathologic_stage variable:\n")
 
-# Check unique pathologic_stage values
-cat("Unique pathologic_stage values before cleaning:\n")
-unique(clinical_filtered_3$pathologic_stage)
+# # Check unique pathologic_stage values
+# cat("Unique pathologic_stage values before cleaning:\n")
+# unique(clinical_filtered_3$pathologic_stage)
 
-clinical_filtered_3 %>%
-  count(pathologic_stage, .drop=FALSE)
+# clinical_filtered_3 %>%
+#   count(pathologic_stage, .drop=FALSE)
   
 cat("Unique paper pathologic_stage values before cleaning:\n")
 unique(clinical_filtered_3$paper_pathologic_stage)
