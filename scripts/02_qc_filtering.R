@@ -315,72 +315,56 @@ cat("clinical_filtered_4 dimensions:", dim(clinical_filtered_4), "\n")#1034 17
 saveRDS(clinical_filtered_4, "data/mid_files/clinical_filtered_4.rds")
 
 
+##---------------------------------------------------------------------
+## 11. Create age group
+##---------------------------------------------------------------------
+clinical_filtered_4 <-clinical_filtered_4 %>%
+  mutate(
+    age_at_diagnosis_years =age_at_diagnosis/365.25,
+    age_group= case_when(
+      age_at_diagnosis_years <40 ~ "<40",
+      age_at_diagnosis_years <50 ~ "40-49",
+      age_at_diagnosis_years <60 ~ "50-59",
+      age_at_diagnosis_years <70 ~ "60-69",
+      TRUE ~"70+" 
+    )
+  )
+head(clinical_filtered_4)
 
+table(clinical_filtered_4$age_group, useNA="always")
+
+#final summary
+summary(clinical_filtered_4)
+
+##---------------------------------------------------------------------
+## 12. Extract the matching expression data (unstarnded and tpm_unstrand)
+##---------------------------------------------------------------------
+#unstarnded
+cat("Extract expression count data:\n")
+counts_raw <- assay(BRCA_rna_data, "unstranded")
+cat("Dimension of count_raw:", dim(counts_raw), "\n")
+
+counts_match <- counts_raw [, clinical_filtered_4$barcode]
+cat("Dimension of count_match:", dim(counts_match), "\n")
+
+#tpm_unstrand
+cat("tpm_unstrand:\n")
+tpm_unstrand_raw <- assay(BRCA_rna_data,"tpm_unstrand")
+cat("tpm_unstrand_raw:", dim(tpm_unstrand_raw), "\n")
+
+
+tpm_unstrand_match <- tpm_unstrand_raw [, clinical_filtered_4$barcode]
+cat("Dimension of tpm_unstrand_match:", dim(tpm_unstrand_match), "\n")
 
 
 ##---------------------------------------------------------------------
 ## Save final filtered clinical data and expression matrix
 ##---------------------------------------------------------------------
-saveRDS(clinical_filtered_3, "data/mid_files/clinical_filtered_3.rds")
-saveRDS(unstranded_full, "data/mid_files/unstranded_full.rds")
+saveRDS(clinical_filtered_4, "data/processed/clinical_filtered_clean.rds")
+saveRDS(counts_match, "data/processed/counts_match.rds")
+saveRDS(tpm_unstrand_match, "data/processed/tpm_unstrand_match.rds")
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#pathologic_stage
-cat("pathologic_stage distribution:\n")
-clinical_unique %>%
-           count(pathologic_stage, .drop=FALSE) 
- 
-str(clinical_unique$pathologic_stage)
-
-#PAM50_Subtype
-cat("PAM50_Subtype distribution:\n")
-clinical_unique %>%
-           count(PAM50_Subtype, .drop=FALSE) 
-
-
-
-
-
-
-table(clinical$tumor_descriptor)
-
-str(clinical$tumor_descriptor)
-
-
-table(clinical_clean$paper_BRCA_Subtype_PAM50)
-table(clinical_clean$ajcc_pathologic_stage)
-table(clinical_clean$vital_status)
-
-
-##--------------------------------------------------
-## 5d. PAM50 Subtype distribution across pathologic stages
-##--------------------------------------------------
-
-
-
-
-  select(-c("barcode", "sample_type", "project_id", "data_category", "data_type", "platform")) %>%
-  distinct() # Remove duplicate rows
-
-
-#Then subset expression matrix:
-  expr_unique <- expr[, clinical_unique$barcode]
