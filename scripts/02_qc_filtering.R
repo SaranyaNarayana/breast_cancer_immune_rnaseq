@@ -286,43 +286,23 @@ cat("\nCleaning TNM variables:\n")
 cat("Unique ajcc_pathologic_t values before cleaning:\n")
 table(clinical_filtered_3$ajcc_pathologic_t, useNA="ifany")
 
-clinical_filtered_3 <- clinical_filtered_3 %>%
-  mutate(ajcc_pathologic_t = case_when(
-    is.na(ajcc_pathologic_t) | ajcc_pathologic_t == "NA" ~ "unknown",
-    TRUE ~ ajcc_pathologic_t
-  ))  
+clinical_filtered_3 <- replace_NA_unknown(clinical_filtered_3, "ajcc_pathologic_t")
 
-cat("Unique ajcc_pathologic_t values after cleaning:\n")
-table(clinical_filtered_3$ajcc_pathologic_t, useNA="ifany")
 
 #ajcc_pathologic_n
 
 cat("Unique ajcc_pathologic_n values before cleaning:\n")
 table(clinical_filtered_3$ajcc_pathologic_n, useNA="ifany")
 
-clinical_filtered_3 <- clinical_filtered_3 %>%
-  mutate(ajcc_pathologic_n = case_when(
-    is.na(ajcc_pathologic_n) | ajcc_pathologic_n == "NA" ~ "unknown",
-    TRUE ~ ajcc_pathologic_n
-  ))  
+clinical_filtered_3 <- replace_NA_unknown(clinical_filtered_3, "ajcc_pathologic_n")
 
-cat("Unique ajcc_pathologic_n values after cleaning:\n")
-table(clinical_filtered_3$ajcc_pathologic_n, useNA="ifany")
 
 #ajcc_pathologic_m
 cat("Unique ajcc_pathologic_m values before cleaning:\n")
 table(clinical_filtered_3$ajcc_pathologic_m, useNA="ifany")
 
-clinical_filtered_3 <- clinical_filtered_3 %>%
-  mutate(ajcc_pathologic_m = case_when(
-    is.na(ajcc_pathologic_m) | ajcc_pathologic_m == "NA" ~ "unknown",
-    TRUE ~ ajcc_pathologic_m
-  ))
-cat("Unique ajcc_pathologic_m values after cleaning:\n")
-table(clinical_filtered_3$ajcc_pathologic_m, useNA="ifany")
+clinical_filtered_3 <- replace_NA_unknown(clinical_filtered_3, "ajcc_pathologic_m")
 
-
-saveRDS(clinical_filtered_3, "data/mid_files/clinical_filtered_3.rds")
 
 ##---------------------------------------------------------------------
 ## 10. Remove uncessary variables
