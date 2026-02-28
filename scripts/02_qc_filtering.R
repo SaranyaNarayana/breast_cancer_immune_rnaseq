@@ -254,15 +254,26 @@ clinical_filtered_3 %>%
   count(paper_pathologic_stage, .drop=FALSE)
 
 #replace NA with unknown in paper_pathologic_stage
-clinical_filtered_3 <- clinical_filtered_3 %>%
-  mutate(paper_pathologic_stage = case_when(
-    is.na(paper_pathologic_stage) | paper_pathologic_stage=="NA" ~ "unknown",
-    TRUE ~ paper_pathologic_stage
-  ))
 
-cat("Unique paper pathologic_stage values after cleaning:\n")
-clinical_filtered_3 %>%
-  count(paper_pathologic_stage, .drop=FALSE)
+replace_NA_unknown <- function(df, column_name) {
+  
+  # Convert string column name to a symbol for tidy evaluation
+  col_sym <- sym(column_name)
+  
+  result <- df %>%
+    mutate(!!col_sym := case_when(
+      is.na(!!col_sym) | !!col_sym == "NA" ~ "unknown",
+      TRUE ~ !!col_sym
+    ))
+  
+  # Print the count
+  cat("Counts for", column_name, ":\n")
+  print(result %>% count(!!col_sym, .drop = FALSE))
+  
+  return(result)
+}
+clinical_filtered_3 <- replace_NA_unknown(clinical_filtered_3, "paper_pathologic_stage")
+
 
 
 ##---------------------------------------------------------------------
