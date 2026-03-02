@@ -177,6 +177,8 @@ clinical_filtered_2 <- clinical_filtered_1 %>%
       TRUE ~ days_to_last_follow_up   
     )
   )
+summary(clinical_filtered_2$days_to_last_follow_up)
+
 
 #create prorper survival time and event variables
 cat("\n vital status table for clinical_filtered_2:\n")
@@ -205,12 +207,14 @@ clinical_filtered_2 <- clinical_filtered_2 %>%
 cat("dimension of clinical_filtered_2:", dim(clinical_filtered_2), "\n")#1036 19 
 
 head(clinical_filtered_2)
+summary(clinical_filtered_2$OS_time)
+table(clinical_filtered_2$OS_time, useNA="ifany")
 
-# Remove samples with invalid/missing survival data
+# Remove samples with invalid/missing survival data and remove negative or zero survival times
 clinical_filtered_3 <- clinical_filtered_2 %>%
-  filter(!is.na(OS_time) & !is.na(OS_event))
+  filter(!is.na(OS_time) & OS_time > 0 )
 
-cat("dimension of clinical_filtered_3:", dim(clinical_filtered_3), "\n")#1034 19 
+cat("dimension of clinical_filtered_3:", dim(clinical_filtered_3), "\n")#1014 19  
 
 
 
