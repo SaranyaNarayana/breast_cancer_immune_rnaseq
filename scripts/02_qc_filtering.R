@@ -1,11 +1,11 @@
 ############################################################
-# Quality filtering and preprocessing of TCGA-BRCA RNA-seq data
+# Quality filtering and preprocessing of clinical data 
 # Project: Breast Cancer Immune Heterogeneity
 # Author: Saranya Narayana
 # Purpose:
-#   - Derive key variables from clinical data
+#   - Derive key variables from clinical data and conduct exploratory data analysis (EDA) and visualization
 #   - Remove duplicate samples and ensure unique patient representation
-#   - Check distribution of key clinical variables and remove missing data if necessary
+#   - Remove missing data if necessary
 
 
 
@@ -44,6 +44,9 @@ suppressPackageStartupMessages({
   library(SummarizedExperiment)
   library(dplyr)
   library(tidyr)
+  library(ggplot2)
+  library(patchwork)  # For combining plots
+  library(RColorBrewer)
 })
 
 
@@ -363,7 +366,7 @@ cat("Dimension of tpm_unstrand_match:", dim(tpm_unstrand_match), "\n")
 
 
 ##---------------------------------------------------------------------
-## Save final filtered clinical data and expression matrix
+## 13. Save final filtered clinical data and expression matrix
 ##---------------------------------------------------------------------
 saveRDS(clinical_filtered_4, "data/processed/clinical_filtered_clean.rds")
 saveRDS(counts_match, "data/processed/counts_match.rds")
@@ -371,5 +374,109 @@ saveRDS(tpm_unstrand_match, "data/processed/tpm_unstrand_match.rds")
 
 
 
+##---------------------------------------------------------------------
+## 14. Final plots for clinical data
+##---------------------------------------------------------------------
+colnames(clinical_filtered_4)
+dir.create("results/figures/clinical_overview", recursive = TRUE, showWarnings = FALSE)
+
+##---------------------------------------------------------
+## Plot 1: DEMOGRAPHIC OVERVIEW-Age distribution
+##---------------------------------------------------------
+
+p1 <- ggplot(clinical_filtered_4, aes(x = age_at_diagnosis_years)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white", alpha = 0.8) +
+  geom_vline(aes(xintercept = median(age_at_diagnosis_years)), 
+             color = "red", linetype = "dashed", size = 1) +
+  annotate("text", x = median(clinical_filtered_4$age_at_diagnosis_years) + 5, 
+           y = Inf, vjust = 2,
+           label = paste("Median:", round(median(clinical_filtered_4$age_at_diagnosis_years), 1), "years"),
+           color = "red", size = 4) +
+  labs(title = "Age Distribution at Diagnosis",
+       x = "Age (years)", y = "Number of Patients") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14))
+
+ggsave("results/figures/clinical_overview/01_age_distribution.png", 
+       p1, width = 8, height = 6, dpi = 300)
 
 
+##---------------------------------------------------------
+## Plot 2: DEMOGRAPHIC OVERVIEW- Age by PAM50 subtype
+##---------------------------------------------------------
+
+p2 <- ggplot(clinical_filtered_4, aes(x = PAM50_Subtype, y = age_at_diagnosis_years, 
+                                        fill = PAM50_Subtype)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = 16, outlier.size = 1) +
+  geom_jitter(width = 0.2, alpha = 0.2, size = 0.8) +
+  stat_summary(fun = median, geom = "text", aes(label = round(..y.., 1)),
+               vjust = -0.5, size = 3.5, fontface = "bold") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Age Distribution by PAM50 Subtype",
+       x = "PAM50 Subtype", y = "Age at Diagnosis (years)") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold", size = 14))
+
+ggsave("results/figures/clinical_overview/02_age_by_pam50.png", 
+       p2, width = 10, height = 6, dpi = 300)
+
+
+##---------------------------------------------------------
+## Plot 3: DEMOGRAPHIC OVERVIEW- Age groups distribution
+##---------------------------------------------------------
+p3 <- ggplot(clinical_filtered_4, aes(x = age_group, fill = age_group)) +
+  geom_bar(alpha = 0.8) +
+  geom_text(stat = 'count', aes(label = after_stat(count)), 
+            vjust = -0.5, size = 4, fontface = "bold") +
+  scale_fill_brewer(palette = "YlOrRd") +
+  labs(title = "Distribution by Age Group",
+       x = "Age Group", y = "Number of Patients") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold", size = 14))
+
+ggsave("results/figures/clinical_overview/03_age_groups.png", 
+       p3, width = 8, height = 6, dpi = 300)
+
+
+##---------------------------------------------------------
+## Plot 4: PAM50 SUBTYPE ANALYSIS:PAM50 subtype distribution
+##---------------------------------------------------------
+pam50_counts <- clinical_filtered_4 %>%
+  count(PAM50_Subtype) %>%
+  mutate(percentage = n / sum(n) * 100)
+
+p4 <- ggplot(pam50_counts, aes(x = reorder(PAM50_Subtype, -n), y = n, 
+                                 fill = PAM50_Subtype)) +
+  geom_bar(stat = "identity", alpha = 0.8) +
+  geom_text(aes(label = paste0(n, "\n(", round(percentage, 1), "%)")), 
+            vjust = -0.3, size = 4, fontface = "bold") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "PAM50 Molecular Subtype Distribution",
+       subtitle = paste0("Total patients: ", nrow(clinical_filtered_4)),
+       x = "PAM50 Subtype", y = "Number of Patients") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold", size = 14))
+
+ggsave("results/figures/clinical_overview/04_pam50_distribution.png", 
+       p4, width = 10, height = 6, dpi = 300)
+
+##---------------------------------------------------------
+## Plot 5: PAM50 SUBTYPE ANALYSIS:PAM50 pie chart
+##---------------------------------------------------------  
+
+p5 <- ggplot(pam50_counts, aes(x = "", y = n, fill = PAM50_Subtype)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar("y", start = 0) +
+  geom_text(aes(label = paste0(PAM50_Subtype, "\n", round(percentage, 1), "%")),
+            position = position_stack(vjust = 0.5), size = 4, fontface = "bold") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "PAM50 Subtype Distribution (Pie Chart)") +
+  theme_void() +
+  theme(plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+        legend.position = "right")
+
+ggsave("results/figures/clinical_overview/05_pam50_pie.png", 
+       p5, width = 10, height = 8, dpi = 300)
