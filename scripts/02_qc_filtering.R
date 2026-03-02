@@ -541,10 +541,10 @@ ggsave("results/figures/clinical_overview/08_stage_by_pam50_counts.png",
 
 
 ##---------------------------------------------------------
-## Plot 9: STAGE ANALYSIS:Stage by PAM50 subtype
+## Plot 9: Violin plot: PAM50 subtype vs age at diagnosis
 ##---------------------------------------------------------
 
-ggplot(clinical_filtered_4, 
+p9 <-ggplot(clinical_filtered_4, 
        aes(x = PAM50_Subtype, y = age_at_diagnosis_years, fill = PAM50_Subtype)) +
   geom_violin(alpha = 0.7) +
   geom_boxplot(width = 0.15, fill = "white", alpha = 0.8) +
@@ -555,4 +555,64 @@ ggplot(clinical_filtered_4,
   theme_bw() +
   theme(legend.position = "none")
 
-ggsave("age_violin_pam50.png", width = 10, height = 6, dpi = 300)
+ggsave("results/figures/clinical_overview/09_age_violin_pam50.png", p9, width = 10, height = 6, dpi = 300)
+
+##---------------------------------------------------------
+## Plot 10: Violin plot: stage vs age at diagnosis
+##---------------------------------------------------------
+
+p10 <- ggplot(clinical_filtered_4 %>% filter(paper_pathologic_stage != "Unknown"), 
+       aes(x = paper_pathologic_stage, y = age_at_diagnosis_years, 
+           fill = paper_pathologic_stage)) +
+  geom_violin(alpha = 0.7) +
+  geom_boxplot(width = 0.15, fill = "white", alpha = 0.8) +
+  geom_jitter(alpha = 0.2, width = 0.1, size = 0.5) +
+  scale_fill_brewer(palette = "RdYlGn", direction = -1) +
+  labs(title = "Age Distribution by Stage",
+       x = "Stage", y = "Age at Diagnosis (years)") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+ggsave("results/figures/clinical_overview/10_age_violin_stage.png", p10, width = 10, height = 6, dpi = 300)
+
+
+##---------------------------------------------------------
+## Plot 11: DEMOGRAPHIC CHARACTERISTICS - Gender distribution
+##---------------------------------------------------------
+
+p11 <- ggplot(clinical_filtered_4, aes(x = gender, fill = gender)) +
+  geom_bar(alpha = 0.8) +
+  geom_text(stat = 'count', aes(label = after_stat(count)), 
+            vjust = -0.5, size = 5, fontface = "bold") +
+  scale_fill_manual(values = c("Female" = "#FF69B4", "Male" = "#4169E1")) +
+  labs(title = "Gender Distribution",
+       x = "Gender", y = "Number of Patients") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold", size = 14))
+
+ggsave("results/figures/clinical_overview/11_gender_distribution.png", 
+       p11, width = 8, height = 6, dpi = 300)
+
+
+##---------------------------------------------------------
+## Plot 11: DEMOGRAPHIC CHARACTERISTICS - Race distribution
+##---------------------------------------------------------
+
+race_counts <- clinical_filtered_4 %>%
+  count(race) %>%
+  arrange(desc(n))
+
+p12 <- ggplot(race_counts, aes(x = reorder(race, n), y = n, fill = race)) +
+  geom_bar(stat = "identity", alpha = 0.8) +
+  geom_text(aes(label = n), hjust = -0.3, size = 4, fontface = "bold") +
+  coord_flip() +
+  scale_fill_brewer(palette = "Set3") +
+  labs(title = "Race/Ethnicity Distribution",
+       x = "Race", y = "Number of Patients") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold", size = 14))
+
+ggsave("results/figures/clinical_overview/12_race_distribution.png", 
+       p12, width = 10, height = 6, dpi = 300)
