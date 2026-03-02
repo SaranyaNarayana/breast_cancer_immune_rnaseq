@@ -257,7 +257,7 @@ unique(clinical_filtered_3$paper_pathologic_stage)
 clinical_filtered_3 %>%
   count(paper_pathologic_stage, .drop=FALSE)
 
-#replace NA with unknown in paper_pathologic_stage
+#function to replace NA with unknown in paper_pathologic_stage
 
 replace_NA_unknown <- function(df, column_name) {
   
@@ -276,6 +276,7 @@ replace_NA_unknown <- function(df, column_name) {
   
   return(result)
 }
+
 clinical_filtered_3 <- replace_NA_unknown(clinical_filtered_3, "paper_pathologic_stage")
 
 
@@ -314,7 +315,7 @@ clinical_filtered_3 <- replace_NA_unknown(clinical_filtered_3, "ajcc_pathologic_
 clinical_filtered_4 <- clinical_filtered_3 %>%
   select(-c("pathologic_stage", "sample_type"))
   
-cat("clinical_filtered_4 dimensions:", dim(clinical_filtered_4), "\n")#1034 17
+cat("clinical_filtered_4 dimensions:", dim(clinical_filtered_4), "\n")#1014 17 
 
 saveRDS(clinical_filtered_4, "data/mid_files/clinical_filtered_4.rds")
 
