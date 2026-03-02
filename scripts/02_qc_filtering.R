@@ -1,5 +1,5 @@
 ############################################################
-# Quality filtering and preprocessing of clinical data 
+# Quality filtering, preprocessing and plotting of clinical data 
 # Project: Breast Cancer Immune Heterogeneity
 # Author: Saranya Narayana
 # Purpose:
@@ -480,3 +480,79 @@ p5 <- ggplot(pam50_counts, aes(x = "", y = n, fill = PAM50_Subtype)) +
 
 ggsave("results/figures/clinical_overview/05_pam50_pie.png", 
        p5, width = 10, height = 8, dpi = 300)
+
+
+##---------------------------------------------------------
+## Plot 6: STAGE ANALYSIS:Stage distribution
+##---------------------------------------------------------
+
+stage_counts <- clinical_filtered_4 %>%
+  count(paper_pathologic_stage) %>%
+  mutate(percentage = n / sum(n) * 100)
+
+p6 <- ggplot(stage_counts, aes(x = reorder(paper_pathologic_stage, -n), 
+                                 y = n, fill = paper_pathologic_stage)) +
+  geom_bar(stat = "identity", alpha = 0.8) +
+  geom_text(aes(label = paste0(n, "\n(", round(percentage, 1), "%)")), 
+            vjust = -0.3, size = 3.5, fontface = "bold") +
+  scale_fill_brewer(palette = "RdYlGn", direction = -1) +
+  labs(title = "Pathologic Stage Distribution",
+       x = "Pathologic Stage", y = "Number of Patients") +
+  theme_bw() +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold", size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggsave("results/figures/clinical_overview/06_stage_distribution.png", 
+       p6, width = 10, height = 6, dpi = 300)
+
+##---------------------------------------------------------
+## Plot 7: STAGE ANALYSIS:Stage by PAM50 subtype
+##---------------------------------------------------------
+p7 <- ggplot(clinical_filtered_4, aes(x = PAM50_Subtype, fill = paper_pathologic_stage)) +
+  geom_bar(position = "fill", alpha = 0.8) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_brewer(palette = "RdYlGn", direction = -1) +
+  labs(title = "Stage Distribution by PAM50 Subtype",
+       x = "PAM50 Subtype", y = "Proportion of Patients",
+       fill = "Stage") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14))
+
+ggsave("results/figures/clinical_overview/07_stage_by_pam50.png", 
+       p7, width = 10, height = 6, dpi = 300)
+
+
+##---------------------------------------------------------
+## Plot 8: STAGE ANALYSIS:Stage by PAM50 subtype
+##---------------------------------------------------------
+
+p8 <- ggplot(clinical_filtered_4, aes(x = PAM50_Subtype, fill = paper_pathologic_stage)) +
+  geom_bar(position = "dodge", alpha = 0.8) +
+  scale_fill_brewer(palette = "RdYlGn", direction = -1) +
+  labs(title = "Stage Distribution by PAM50 Subtype (Counts)",
+       x = "PAM50 Subtype", y = "Number of Patients",
+       fill = "Stage") +
+  theme_bw() +
+  theme(plot.title = element_text(face = "bold", size = 14))
+
+ggsave("results/figures/clinical_overview/08_stage_by_pam50_counts.png", 
+       p8, width = 10, height = 6, dpi = 300)
+
+
+##---------------------------------------------------------
+## Plot 9: STAGE ANALYSIS:Stage by PAM50 subtype
+##---------------------------------------------------------
+
+ggplot(clinical_filtered_4, 
+       aes(x = PAM50_Subtype, y = age_at_diagnosis_years, fill = PAM50_Subtype)) +
+  geom_violin(alpha = 0.7) +
+  geom_boxplot(width = 0.15, fill = "white", alpha = 0.8) +
+  geom_jitter(alpha = 0.2, width = 0.1, size = 0.5) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Age Distribution by PAM50 Subtype",
+       x = "PAM50 Subtype", y = "Age at Diagnosis (years)") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+ggsave("age_violin_pam50.png", width = 10, height = 6, dpi = 300)
