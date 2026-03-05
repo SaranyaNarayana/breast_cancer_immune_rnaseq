@@ -1,7 +1,17 @@
 
+############################################################
+# Clinical data plot
+# Project: Breast Cancer Immune Heterogeneity
+# Author: Saranya Narayana
+# Purpose:
+#   - Plot different features of clinical data
+############################################################
 
+############################################################
+setwd("/home/sara/BioInfo_projects/breast_cancer_immune_rnaseq/")
+############################################################
 ##---------------------------------------------------------------------
-## 14. Final plots for clinical data
+## Final plots for clinical data
 ##---------------------------------------------------------------------
 colnames(clinical_filtered_4)
 dir.create("results/figures/clinical_overview", recursive = TRUE, showWarnings = FALSE)
