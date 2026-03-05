@@ -6,13 +6,14 @@
 #   - Derive key variables from clinical data and conduct exploratory data analysis (EDA) and visualization
 #   - Remove duplicate samples and ensure unique patient representation
 #   - Remove missing data if necessary
-
-
-
-#   - Quality control and filtering of TCGA-BRCA RNA-seq data
-#   - Prepare clean count matrix and metadata for downstream analysis
-#   - Save processed data for analysis
-#   - Conduct exploratory data analysis (EDA) and visualization
+#   - Handle survival variables
+#   - Clean and standardize PAM50 Subtype variable
+#   - Clean and standardize paper pathologic_stage variable
+#   - Clean and standardize TNM variable
+#   - Remove uncessary variables
+#   - Create age group
+#   - Extract the matching expression data (unstarnded and tpm_unstrand)
+#   - Save the final clinical and expression data for further anlysis
 ############################################################
 
 ############################################################
