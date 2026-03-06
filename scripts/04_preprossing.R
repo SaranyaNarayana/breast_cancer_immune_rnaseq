@@ -85,3 +85,13 @@ p1 <- ggplot (qc_metrics_sample, aes(x=total_counts/1e6))+
        y = "Number of Samples") +
   theme_bw()
 ggsave("results/figures/preprocessing_plots/01_total_counts_distribution.png", p1, width = 8, height = 6)
+
+# Plot 2: genes detected
+
+p2 <- ggplot(qc_metrics_sample, aes(x=n_genes_detected))+
+    geom_histogram(bins=50, fill="coral", alpha=0.7)+
+    labs(title="Genes detected per sample",
+    x="Number of genes detected",
+    y="Number of sample")+
+    theme_bw()
+ggsave("results/figures/preprocessing_plots/02_genes_detected_distribution.png", p2, width = 8, height = 6)
