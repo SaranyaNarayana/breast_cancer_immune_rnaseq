@@ -103,15 +103,15 @@ quantile(qc_metrics_sample$total_counts / 1e6, probs = c(0.01, 0.05, 0.10, 0.90,
 quantile(qc_metrics_sample$n_genes_detected, probs = c(0.01, 0.05, 0.10, 0.90, 0.95, 0.99))
 
 
-#Set thresholds for filtering based on quantiles
+#Set thresholds for filtering
 qc_thresholds <- list(
   # Total counts
-  min_total_counts = quantile(qc_metrics_sample$total_counts, 0.01),
-  max_total_counts = quantile(qc_metrics_sample$total_counts, 0.99),    
+  min_total_counts = 15e6, # Minimum total counts (15 million)
+  max_total_counts = Inf, # No upper limit for total counts
   
   # Genes detected  
-  min_genes_detected = quantile(qc_metrics_sample$n_genes_detected, 0.01), 
-  max_genes_detected = quantile(qc_metrics_sample$n_genes_detected, 0.99)  
+  min_genes_detected = 20000, 
+  max_genes_detected =45000  
 )
 
 # Apply filters
@@ -137,6 +137,6 @@ tpm_clean <- tpm[, samples_to_keep]
 clinical_clean <- clinical %>%
   filter(barcode %in% samples_to_keep)
 
-cat("Samples after QC:", ncol(counts_clean), "\n")
+cat("Samples after QC:", ncol(counts_clean), "\n") #976
 cat("Retention rate:",
 round(ncol(counts_clean)/ncol(counts) * 100, 1), "%\n")**
