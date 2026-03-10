@@ -139,4 +139,4 @@ clinical_clean <- clinical %>%
 
 cat("Samples after QC:", ncol(counts_clean), "\n") #976
 cat("Retention rate:",
-round(ncol(counts_clean)/ncol(counts) * 100, 1), "%\n")**
+round(ncol(counts_clean)/ncol(counts) * 100, 1), "%\n")
