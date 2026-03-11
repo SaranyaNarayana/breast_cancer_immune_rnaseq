@@ -123,7 +123,7 @@ severe_outliers <- qc_metrics_sample %>%
     n_genes_detected > qc_thresholds$max_genes_detected
   )
 
-cat("Number of severe outliers identified:", nrow(severe_outliers), "\n")#38
+cat("Number of severe outliers identified:", nrow(severe_outliers), "\n")#1
 
 samples_to_keep <- setdiff(colnames(counts), severe_outliers$sample)
 
@@ -137,6 +137,5 @@ tpm_clean <- tpm[, samples_to_keep]
 clinical_clean <- clinical %>%
   filter(barcode %in% samples_to_keep)
 
-cat("Samples after QC:", ncol(counts_clean), "\n") #976
-cat("Retention rate:",
-round(ncol(counts_clean)/ncol(counts) * 100, 1), "%\n")
+cat("Samples after QC:", ncol(counts_clean), "\n") #1013
+cat("Retention rate:",round(ncol(counts_clean)/ncol(counts) * 100, 1), "%\n")
