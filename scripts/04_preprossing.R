@@ -69,8 +69,8 @@ cat("clinical data", dim(clinical), "\n") #1014 19
 
 qc_metrics_sample <- data.frame(
     sample=colnames(counts),
-    total_counts=colSums(counts),
-    n_genes_detected=colSums(counts>0) #counts how many unique genes in a sample that have at least one read.
+    total_counts=colSums(counts), #totoal counts per sample
+    n_genes_detected=colSums(counts>0) #unique genes per sample that have at least one read.
 )
 cat("qc_metrics_sample", dim(qc_metrics_sample), "\n")
 head(qc_metrics_sample )
@@ -139,3 +139,45 @@ clinical_clean <- clinical %>%
 
 cat("Samples after QC:", ncol(counts_clean), "\n") #1013
 cat("Retention rate:",round(ncol(counts_clean)/ncol(counts) * 100, 1), "%\n")
+
+
+## -----------------------------
+## 3. Quality control-Genes
+## -----------------------------
+
+# Calculate gene-level metrics based on counts
+qc_metrics_genes <- data.frame(
+  gene=rownames(counts_clean),
+  mean_expression=rowMeans(counts_clean), # mean expression across all samples for each gene
+  n_samples_expressed=rowSums(counts_clean > 0),# number of samples where the gene is expressed (count > 0)
+  pct_samples_expressed=rowSums(counts_clean > 0) / ncol(counts_clean) * 100
+)
+
+cat("Summary of qc_metrics_genes:\n")
+summary(qc_metrics_genes)
+
+
+#Caculate gene-level metrics based on TPM
+Qc_metircs_tpm<- data.frame(
+  gene=rownames(tpm_clean),
+  mean_tpm=rowMeans(tpm_clean), # mean TPM across all samples for each gene
+  n_samples_expressed=rowSums(tpm_clean > 1),# number of samples where the gene is expressed (TPM > 1)
+  pct_samples_expressed=rowSums(tpm_clean > 1) / ncol(tpm_clean) * 100
+)
+cat("Summary of Qc_metircs_tpm:\n")
+summary(Qc_metircs_tpm)
+
+
+
+#filter the low expressed genes based on TPM: keep genes with TPM >1 in at least 10% of the samples 
+min_samples_expressed <- ceiling(0.10 * ncol(tpm_clean)) #10% of samples; 102
+cat("Minimum number of samples a gene must be expressed in to be retained:", min_samples_expressed, "\n")#102
+
+genes_to_keep <- rowSums(tpm_clean > 1) >= min_samples_expressed #genes that have TPM >1 in at least 10% of samples
+
+cat("Number of genes retained after filtering:", sum(genes_to_keep), "\n") # 23059
+cat("Retention rate:", round(sum(genes_to_keep) / nrow(counts_clean) * 100, 1), "%\n")#38%
+
+
+
+
