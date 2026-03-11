@@ -196,3 +196,40 @@ cat("Dimensions of filtered counts matrix:", dim(counts_filtered), "\n") #23059 
 cat("Dimensions of filtered TPM matrix:", dim(tpm_filtered), "\n") #23059 1013
 cat("Dimensions of filtered clinical data:", dim(clinical_filtered), "\n") #1013 19
 
+saveRDS(counts_filtered, "data/processed/counts_filtered.rds")
+saveRDS(tpm_filtered, "data/processed/tpm_filtered.rds")
+saveRDS(clinical_filtered, "data/processed/clinical_filtered.rds")
+
+# counts_filtered <- readRDS("data/processed/counts_filtered.rds")
+# tpm_filtered <- readRDS("data/processed/tpm_filtered.rds")
+# clinical_filtered <- readRDS("data/processed/clinical_filtered.rds")
+
+## -----------------------------
+## 4. Normalization for downstream analaysis
+## -----------------------------
+
+
+# Method 1: TMM normalization (edgeR)
+dge <- DGEList(counts = counts_filtered)
+dge <- calcNormFactors(dge, method = "TMM")
+tmm_norm <- cpm(dge, log = TRUE, prior.count = 1)
+
+# Method 2: DESeq2 normalization (size factors)
+dds <- DESeqDataSetFromMatrix(
+  countData = counts_filtered,
+  colData = clinical_filtered,
+  design = ~ 1
+)
+dds <- estimateSizeFactors(dds)
+deseq2_norm <- vst(dds, blind = TRUE)  # Variance stabilizing transformation
+
+# Method 3: Log2(TPM + 1)
+log2_tpm <- log2(tpm_filtered + 1)
+
+# Save normalized data
+saveRDS(tmm_norm, "data/processed/expression_tmm_normalized.rds")
+saveRDS(deseq2_norm, "data/processed/expression_vst_normalized.rds")
+saveRDS(log2_tpm, "data/processed/expression_log2tpm.rds")
+
+# Use DESeq2 VST as primary normalized data for downstream analysis
+expr_norm <- assay(deseq2_norm)
