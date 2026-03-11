@@ -158,7 +158,7 @@ summary(qc_metrics_genes)
 
 
 #Caculate gene-level metrics based on TPM
-Qc_metircs_tpm<- data.frame(
+Qc_metircs_tpm <- data.frame(
   gene=rownames(tpm_clean),
   mean_tpm=rowMeans(tpm_clean), # mean TPM across all samples for each gene
   n_samples_expressed=rowSums(tpm_clean > 1),# number of samples where the gene is expressed (TPM > 1)
@@ -167,6 +167,14 @@ Qc_metircs_tpm<- data.frame(
 cat("Summary of Qc_metircs_tpm:\n")
 summary(Qc_metircs_tpm)
 
+p3<- ggplot(qc_metrics_genes, aes(x=pct_samples_expressed))+
+    geom_histogram(bins=50, fill="lightgreen", alpha=0.7)+
+    labs(title="Percentage of samples with gene expression",
+    x="Percentage of samples gene expressed (TPM>1)",
+    y="Number of genes")+
+    theme_bw()
+
+ggsave("results/figures/preprocessing_plots/03_Percentage_of_samples_with_gene_expression_TPM.png", p3, width = 8, height = 6)
 
 
 #filter the low expressed genes based on TPM: keep genes with TPM >1 in at least 10% of the samples 
@@ -179,5 +187,12 @@ cat("Number of genes retained after filtering:", sum(genes_to_keep), "\n") # 230
 cat("Retention rate:", round(sum(genes_to_keep) / nrow(counts_clean) * 100, 1), "%\n")#38%
 
 
+#Extract the counts and TPM for the retained genes, and the corresponding clinical data
+counts_filtered <- counts_clean[genes_to_keep, ]
+tpm_filtered <- tpm_clean[genes_to_keep, ]
+clinical_filtered <- clinical_clean
 
+cat("Dimensions of filtered counts matrix:", dim(counts_filtered), "\n") #23059 1013
+cat("Dimensions of filtered TPM matrix:", dim(tpm_filtered), "\n") #23059 1013
+cat("Dimensions of filtered clinical data:", dim(clinical_filtered), "\n") #1013 19
 
