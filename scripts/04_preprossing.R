@@ -233,3 +233,78 @@ saveRDS(log2_tpm, "data/processed/expression_log2tpm.rds")
 
 # Use DESeq2 VST as primary normalized data for downstream analysis
 expr_norm <- assay(deseq2_norm)
+cat("Dimensions of normalized expression matrix:", dim(expr_norm), "\n") #23059 1013
+saveRDS(expr_norm, "data/processed/expression_vst_normalized.rds")
+
+## -----------------------------------------
+## 5. Check for sample clustering using PCA
+## -----------------------------------------
+
+pca <- prcomp(t(expr_norm), scale. = TRUE, center = TRUE)
+pca_df <- data.frame(
+  PC1 = pca$x[, 1],
+  PC2 = pca$x[, 2],
+  PC3 = pca$x[, 3],
+  PAM50_Subtype = clinical_filtered$PAM50_Subtype,
+  pathological_stage = clinical_filtered$paper_pathologic_stage,
+  sample = clinical_filtered$barcode
+)
+
+# PCA plot by PAM50 subtype
+p4 <- ggplot(pca_df, aes(x = PC1, y = PC2, color = PAM50_Subtype)) +
+  geom_point(size = 3, alpha = 0.8) +
+  labs(title = "PCA of VST-normalized expression (colored by PAM50 Subtype)",
+       x = "PC1", y = "PC2") +
+  theme_bw() +
+  theme(legend.title = element_blank())
+ggsave("results/figures/preprocessing_plots/04_PCA_VST_normalized_PAM50.png", p4, width = 8, height = 6)
+
+#PCA plot by stage
+p5 <- ggplot(pca_df, aes(x = PC1, y = PC2, color = pathological_stage)) +
+  geom_point(size = 3, alpha = 0.8) +
+  labs(title = "PCA of VST-normalized expression (colored by pathological stage)",
+       x = "PC1", y = "PC2") +
+  theme_bw() +
+  theme(legend.title = element_blank())
+ggsave("results/figures/preprocessing_plots/05_PCA_VST_normalized_stage.png", p5, width = 8, height = 6)  
+
+
+
+## -----------------------------------------
+## 6. Sample correlation heatmap
+## -----------------------------------------
+sample_cor <- cor(expr_norm, method="pearson")
+
+annotation_col_1 <- data.frame(
+  PAM50_Subtype = clinical_filtered$PAM50_Subtype,
+  row.names=clinical_filtered$barcode
+)
+
+#pheat with  PAM50_Subtype
+png("results/figures/preprocessing_plots/06_sample_correlation_heatmap_PAM50_Subtype.png", width = 12, height = 12, units = "in", res = 300)
+pheatmap(sample_cor, 
+         annotation_col = annotation_col, 
+         show_rownames = FALSE, 
+         show_colnames = FALSE, 
+         main = "Sample Correlation Heatmap by PAM50_Subtype",
+         color = colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100),
+         )
+dev.off()
+
+
+#pheat with pathological stage
+annotation_col_2 <- data.frame(
+  pathological_stage = clinical_filtered$paper_pathologic_stage,
+  row.names=clinical_filtered$barcode
+)
+
+
+png("results/figures/preprocessing_plots/07_sample_correlation_heatmap_stage_pathological stage.png", width = 12, height = 12, units = "in", res = 300)
+pheatmap(sample_cor, 
+         annotation_col = annotation_col_2, 
+         show_rownames = FALSE, 
+         show_colnames = FALSE, 
+         main = "Sample Correlation Heatmap by pathological stage ",
+         color = colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100),
+         )
+dev.off()
