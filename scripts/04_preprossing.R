@@ -3,8 +3,9 @@
 # Project: Breast Cancer Immune Heterogeneity
 # Author: Saranya Narayana
 # Purpose:
-#   - 
-#   - 
+#   - Performed quality control of samples and genes
+#   - Conducted normalization using TMM (edgeR), DESeq2 size factors, and log2(TPM + 1)
+#   - Generated PCA plots and sample correlation heatmaps to assess data quality and clustering patterns
 
 
 ############################################################
