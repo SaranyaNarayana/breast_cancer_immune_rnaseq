@@ -259,8 +259,7 @@ brca_rna_data <- SummarizedExperiment(
   colData = meta_full
 )
 cat("Dim_brca_rna_data:", dim(brca_rna_data), "\n")
-saveRDS(brca_rna_data,
-        "data/raw/TCGA_BRCA_rna_data.rds")
+saveRDS(brca_rna_data,"data/raw/TCGA_BRCA_rna_data.rds")
 
 
 
