@@ -31,16 +31,18 @@ log_message <- function(msg) {
   cat(sprintf("[%s] %s\n", timestamp, msg))
 }
 
-BiocManager::install("immunedeconv", ask = FALSE, update = TRUE)
+
 
 suppressPackageStartupMessages({
     library(GSVA)
     library(immunedeconv)
-    library(ESTIMATE)
+    #library(ESTIMATE)
     library(GSEABase)
     library(dplyr)
     library(tibble)
     library(ggplot2)
+    library(pheatmap)
+    library(msigdbr)
 })
 
 #create output directory
@@ -51,3 +53,22 @@ dir.create("data/processed/immune", recursive=TRUE, showWarnings = FALSE)
 ## -----------------------------
 ## 1. Load Data
 ## -----------------------------
+expr <- readRDS("data/processed/expression_vst_normalized.rds") #  DESeq2 VST as primary normalized count data 
+cat("Expression data loaded. Dimensions:", dim(expr), "\n")
+
+
+
+clinical <- readRDS("data/processed/clinical_filtered.rds")
+cat("Clinical data loaded. Dimensions:", dim(clinical), "\n")
+
+
+## -----------------------------
+## 2. Define immune gene signatures
+## -----------------------------
+
+#1. Hallmark immune signatures from MSigDB
+
+library(msigdbr)
+
+hallmark_sets <- msigdbr(species = "Homo sapiens", category = "H") %>%
+    filter(grepl("IMMUNE|INFLAMMATORY|INTERFERON|TNF|\\bIL[0-9_]", gs_name))
