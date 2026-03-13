@@ -232,10 +232,15 @@ saveRDS(tmm_norm, "data/processed/expression_tmm_normalized.rds")
 saveRDS(deseq2_norm, "data/processed/expression_vst_normalized.rds")
 saveRDS(log2_tpm, "data/processed/expression_log2tpm.rds")
 
+
+
 # Use DESeq2 VST as primary normalized data for downstream analysis
 expr_norm <- assay(deseq2_norm)
 cat("Dimensions of normalized expression matrix:", dim(expr_norm), "\n") #23059 1013
 saveRDS(expr_norm, "data/processed/expression_vst_normalized.rds")
+
+
+
 
 ## -----------------------------------------
 ## 5. Check for sample clustering using PCA
