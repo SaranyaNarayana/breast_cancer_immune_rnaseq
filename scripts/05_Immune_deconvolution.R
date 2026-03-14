@@ -170,65 +170,40 @@ id_map <- AnnotationDbi::select(
 head(id_map)
 cat("ID mapping dimensions:", dim(id_map), "\n") #23267 2 
 
-# Remove unmapped or duplicate symbols
-id_map <- id_map[!is.na(id_map$SYMBOL) & !duplicated(id_map$SYMBOL), ]
+# Remove unmapped or duplicate symbols (Keep only first symbol per Ensembl ID)
+id_map_1 <- id_map[!is.na(id_map$SYMBOL) & !duplicated(id_map$SYMBOL), ]
+cat("Filtered ID mapping dimensions:", dim(id_map_1), "\n") # 18568 2 
+
 
 # Update matrix rownames
-expr_matrix <- expr_matrix[id_map$ENSEMBL, ]
-rownames(expr_matrix) <- id_map$SYMBOL
+expr_matrix_filtered <- expr_matrix[id_map_1$ENSEMBL, ]
+cat("Filtered expression matrix dimensions:", dim(expr_matrix_filtered), "\n") # 18568 1013
+rownames(expr_matrix_filtered) <- id_map_1$SYMBOL
+head(rownames(expr_matrix_filtered))
+
+# Check how many of your lost genes overlap with your gene sets
+all_set_genes <- unique(unlist(all_signatures))
+length(all_set_genes) # 574
 
 
+# Genes in sets that are still in your matrix
+covered <- intersect(rownames(expr_matrix_filtered), all_set_genes)
+
+cat("Genes required by sets:", length(all_set_genes), "\n")# 574
+cat("Covered after mapping:", length(covered), "\n") # 552
+cat("Coverage (%): ", round(length(covered)/length(all_set_genes)*100, 1), "%\n") # 96.2%
 
 
-
-
-
-
-
-
-
-
-
-#library(biomaRt)
-mart <- useEnsembl("ensembl", dataset = "hsapiens_gene_ensembl")
-dim(mart)
-
-
-# Convert gene symbols in your gene sets to Ensembl IDs
-converted <- getBM(
-  attributes = c("hgnc_symbol", "ensembl_gene_id"),
-  filters    = "hgnc_symbol",
-  values     = unique(unlist(gene_sets)),
-  mart       = mart
-)
-
-# Rebuild gene sets with Ensembl IDs
-gene_sets_ensembl <- lapply(gene_sets, function(gs) {
-  matched <- converted$ensembl_gene_id[converted$hgnc_symbol %in% gs]
-  matched[matched != ""]
-})
-
-
-
-
-
-
-
-
-
-
-
-
-# Build the parameter object
+# Build the parameter object for GSVA 
 params <- gsvaParam(
-  exprData = expr_matrix,      # normalized gene x sample matrix
+  exprData = expr_matrix_filtered,      # normalized gene with gene symbols x sample matrix
   geneSets  = all_signatures,       # named list of gene vectors
   kcdf      = "Gaussian",      # "Gaussian" for log-CPM/TPM, "Poisson" for counts
   minSize   = 10,              # min genes per set
   maxSize   = 500              # max genes per set
 )
 
-cat("Number ofremaing gene sets:", length(gsva(params) |> rownames()))
+cat("Number of remaing gene sets:", length(gsva(params) |> rownames()))
 
 # Run GSVA
 gsva_scores <- gsva(params)
