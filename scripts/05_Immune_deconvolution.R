@@ -60,7 +60,8 @@ dir.create("data/immune", recursive=TRUE, showWarnings = FALSE)
 expr <- readRDS("data/processed/expression_vst_normalized.rds") #  DESeq2 VST as primary normalized count data 
 cat("Expression data loaded. Dimensions:", dim(expr), "\n")
 
-
+tpm <- readRDS("data/processed/tpm_filtered.rds")
+cat("TPM dimensions:", dim(tpm), "\n")
 
 clinical <- readRDS("data/processed/clinical_filtered.rds")
 cat("Clinical data loaded. Dimensions:", dim(clinical), "\n")
@@ -139,17 +140,11 @@ saveRDS(all_signatures, "data/immune/all_signatures.rds")
 
 
 
-
-## -----------------------------
-## 3. Gene set variation analysis (Scores -1 to 1 relative to other samples);
-##    Which samples have relatively higher or lower pathway activity compared to others?
-## -----------------------------
-
-cat("\nRunning GSVA...\n")
-
+## ----------------------------------------------------------------------------------------------
+## 3. Convert Ensembl IDs in the  expr_matrix to gene symbols using AnnotationDbi and org.Hs.eg.db
+## ----------------------------------------------------------------------------------------------
 # Convert expression to matrix 
-expr_matrix <- as.matrix(expr)
-head(expr_matrix)[,1:5] # has Ensembl IDs
+head(expr)[,1:5] # has Ensembl IDs
 
 head(all_signatures[[1]]) #has gene symbols, need to convert to Ensembl IDs
 
@@ -159,12 +154,14 @@ library(AnnotationDbi)
 library(org.Hs.eg.db)  # install via BiocManager::install("org.Hs.eg.db")
 
 # Strip version suffix from rownames
-rownames(expr_matrix) <- sub("\\..*", "", rownames(expr_matrix))
+rownames(expr) <- sub("\\..*", "", rownames(expr_matrix))
+head(rownames(expr))
+
 
 #Extract gene symbols of Ensembl IDs of the expression matrix using AnnotationDbi 
 id_map <- AnnotationDbi::select(
   org.Hs.eg.db,
-  keys    = rownames(expr_matrix),
+  keys    = rownames(expr),
   columns = c("ENSEMBL", "SYMBOL"),
   keytype = "ENSEMBL"
 )
@@ -177,10 +174,13 @@ cat("Filtered ID mapping dimensions:", dim(id_map_1), "\n") # 18568 2
 
 
 # Update matrix rownames
-expr_matrix_filtered <- expr_matrix[id_map_1$ENSEMBL, ]
-cat("Filtered expression matrix dimensions:", dim(expr_matrix_filtered), "\n") # 18568 1013
-rownames(expr_matrix_filtered) <- id_map_1$SYMBOL
-head(rownames(expr_matrix_filtered))
+expr_filtered_symbol <- expr[id_map_1$ENSEMBL, ] #Reorder to match id_map_1 exactly
+cat("Filtered expression filtered symbol dimensions:", dim(expr_filtered_symbol), "\n") # 18568 1013
+
+rownames(expr_filtered_symbol) <- id_map_1$SYMBOL #Assign gene symbols
+head(rownames(expr_filtered_symbol))
+
+saveRDS(expr_filtered_symbol, "data/processed/immune/expression_filtered_symbol.rds")
 
 # Check how many of your lost genes overlap with your gene sets
 all_set_genes <- unique(unlist(all_signatures))
@@ -188,7 +188,7 @@ length(all_set_genes) # 574
 
 
 # Genes in sets that are still in your matrix
-covered <- intersect(rownames(expr_matrix_filtered), all_set_genes)
+covered <- intersect(rownames(expr_filtered_symbol), all_set_genes)
 
 cat("Genes required by sets:", length(all_set_genes), "\n")# 574
 cat("Covered after mapping:", length(covered), "\n") # 552
@@ -201,7 +201,7 @@ print(sort(set_sizes))
 
 # Check effective size (overlap with expression matrix)
 effective_sizes <- sapply(all_signatures, function(gs) {
-  length(intersect(gs, rownames(expr_matrix_filtered)))
+  length(intersect(gs, rownames(expr_filtered_symbol)))
 })
 
 # Summary
@@ -213,40 +213,66 @@ data.frame(
 
 
 
+## -----------------------------
+## 4. GENE SET ENRICHMENT ANALYSIS
+## -----------------------------
+
+## 4a. Gene set variation analysis (Scores -1 to 1 relative to other samples);
+##     Which samples have relatively higher or lower pathway activity compared to others?
+
+cat("\nRunning GSVA...\n")
+
+expr_matrix <- as.matrix(expr_filtered_symbol)
+
 # Build the parameter object for GSVA 
-params <- gsvaParam(
-  exprData = expr_matrix_filtered,      # normalized gene with gene symbols x sample matrix
+gsva_scores <- gsva(
+  gsvaParam(
+  exprData = expr_matrix,      # normalized gene with gene symbols x sample matrix
   geneSets  = all_signatures,       # named list of gene vectors
   kcdf      = "Gaussian",      # "Gaussian" for log-CPM/TPM, "Poisson" for counts
   minSize   = 5,              # min genes per set
   maxSize   = 500              # max genes per set
+  )
 )
 
-# Run GSVA
-gsva_scores <- gsva(params)
 
-dim(gsva_scores) #19 1013
+cat("GSVA scores dimensions:", dim(gsva_scores), "\n") #19 1013
 head(gsva_scores)[,1:5]
 rownames(gsva_scores) # gene set names
 saveRDS(gsva_scores, "data/processed/immune/gsva_scores.rds")
 
 
-
-
-## ---------------------------------------------------------
-## 4. Single sample GSEA (ssGSEA) for immune deconvolution (Scores absolute, not relative to other samples);
+## 4b. Single sample GSEA (ssGSEA) for immune deconvolution (Scores absolute, not relative to other samples);
 ##    How active is this pathway in this sample, regardless of other samples?
-## ---------------------------------------------------------
-
 
 cat("\nRunning ssGSEA...\n")
 
 ssgsea_scores <- gsva(
   ssgseaParam(
-    exprData   = expr_matrix_filtered,
+    exprData   = expr_matrix,
     geneSets   = all_signatures,
-    minSize    = 4,
+    minSize    = 5,
     maxSize    = 500
   )
 )
+cat("ssGSEA scores dimensions:", dim(ssgsea_scores), "\n")#19 1013 
 saveRDS(ssgsea_scores, "data/processed/immune/ssgsea_scores.rds")
+
+
+
+## ------------------------------------------------------------
+## 5. Immune deconvolution using 7 different methods 
+## 7 methods: quanTIseq,MCP-counter, EPIC,xCell, CIBERSORT, Estimate and Custom)
+## ---------------------------------------------------------------------
+
+# convert Ensembl IDs in the TPM matrix to gene symbols using the same mapping as above
+rownames(tpm) <- sub("\\..*", "", rownames(tpm))
+head(rownames(tpm))
+
+
+tpm_filtered <- tpm[rownames(tpm) %in% id_map_1$ENSEMBL, ] # Subset TPM to only the Ensembl IDs that mapped successfully
+cat("TPM dimensions after filtering:", dim(tpm_filtered), "\n") # 18568 1013
+
+tpm_filtered <- tpm_filtered[id_map_1$ENSEMBL, ] #Reorder to match id_map_1 exactly
+rownames(tpm_filtered) <- id_map_1$SYMBOL #Assign gene symbols
+head(rownames(tpm_filtered))
