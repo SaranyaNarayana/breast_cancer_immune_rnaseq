@@ -141,7 +141,8 @@ saveRDS(all_signatures, "data/immune/all_signatures.rds")
 
 
 ## -----------------------------
-## 3. Gene set variation analysis
+## 3. Gene set variation analysis (Scores -1 to 1 relative to other samples);
+##    Which samples have relatively higher or lower pathway activity compared to others?
 ## -----------------------------
 
 cat("\nRunning GSVA...\n")
@@ -226,7 +227,26 @@ gsva_scores <- gsva(params)
 
 dim(gsva_scores) #19 1013
 head(gsva_scores)[,1:5]
-
+rownames(gsva_scores) # gene set names
 saveRDS(gsva_scores, "data/processed/immune/gsva_scores.rds")
 
 
+
+
+## ---------------------------------------------------------
+## 4. Single sample GSEA (ssGSEA) for immune deconvolution (Scores absolute, not relative to other samples);
+##    How active is this pathway in this sample, regardless of other samples?
+## ---------------------------------------------------------
+
+
+cat("\nRunning ssGSEA...\n")
+
+ssgsea_scores <- gsva(
+  ssgseaParam(
+    exprData   = expr_matrix_filtered,
+    geneSets   = all_signatures,
+    minSize    = 4,
+    maxSize    = 500
+  )
+)
+saveRDS(ssgsea_scores, "data/processed/immune/ssgsea_scores.rds")
