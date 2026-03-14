@@ -45,6 +45,7 @@ suppressPackageStartupMessages({
     library(msigdbr)
     library(dplyr)
     library(limma)
+    library(biomaRt)
 })
 
 #create output directory
@@ -69,12 +70,8 @@ cat("Clinical data loaded. Dimensions:", dim(clinical), "\n")
 ## 2. Define immune gene signatures
 ## -----------------------------
 
-#1. Hallmark immune signatures from MSigDB
-
-library(msigdbr)
-
-#Get hallmark immune-related gene sets
-hallmark_sets <- msigdbr(species = "Homo sapiens", category = "H") %>%
+# Hallmark immune signatures from MSigDB
+hallmark_sets <- msigdbr(species = "Homo sapiens", collection = "H") %>%
     filter(grepl("IMMUNE|INFLAMMATORY|INTERFERON|TNF|\\bIL[0-9_]", gs_name))
 cat("Hallmark immune sets dimensions:", dim(hallmark_sets), "\n")
 
@@ -138,6 +135,11 @@ all_signatures <- c(hallmark_list, immune_signatures)
 
 cat("\nTotal immune signatures:", length(all_signatures), "\n")#22
 
+saveRDS(all_signatures, "data/immune/all_signatures.rds")
+
+
+
+
 ## -----------------------------
 ## 3. Gene set variation analysis
 ## -----------------------------
@@ -150,9 +152,71 @@ head(expr_matrix)[,1:5] # has Ensembl IDs
 
 head(all_signatures[[1]]) #has gene symbols, need to convert to Ensembl IDs
 
-#Convert gene sets to match Ensembl IDs in the  expr_matrix
-install.packages("biomaRt")
-library(biomaRt)
+#Convert Ensembl IDs in the  expr_matrix to gene symbols using AnnotationDbi and org.Hs.eg.db
+install.packages(c("AnnotationDbi", "org.Hs.eg.db"))
+library(AnnotationDbi)
+library(org.Hs.eg.db)  # install via BiocManager::install("org.Hs.eg.db")
+
+# Strip version suffix from rownames
+rownames(expr_matrix) <- sub("\\..*", "", rownames(expr_matrix))
+
+
+id_map <- AnnotationDbi::select(
+  org.Hs.eg.db,
+  keys    = rownames(expr_matrix),
+  columns = c("ENSEMBL", "SYMBOL"),
+  keytype = "ENSEMBL"
+)
+head(id_map)
+cat("ID mapping dimensions:", dim(id_map), "\n") #23267 2 
+
+# Remove unmapped or duplicate symbols
+id_map <- id_map[!is.na(id_map$SYMBOL) & !duplicated(id_map$SYMBOL), ]
+
+# Update matrix rownames
+expr_matrix <- expr_matrix[id_map$ENSEMBL, ]
+rownames(expr_matrix) <- id_map$SYMBOL
+
+
+
+
+
+
+
+
+
+
+
+
+
+#library(biomaRt)
+mart <- useEnsembl("ensembl", dataset = "hsapiens_gene_ensembl")
+dim(mart)
+
+
+# Convert gene symbols in your gene sets to Ensembl IDs
+converted <- getBM(
+  attributes = c("hgnc_symbol", "ensembl_gene_id"),
+  filters    = "hgnc_symbol",
+  values     = unique(unlist(gene_sets)),
+  mart       = mart
+)
+
+# Rebuild gene sets with Ensembl IDs
+gene_sets_ensembl <- lapply(gene_sets, function(gs) {
+  matched <- converted$ensembl_gene_id[converted$hgnc_symbol %in% gs]
+  matched[matched != ""]
+})
+
+
+
+
+
+
+
+
+
+
 
 
 # Build the parameter object
