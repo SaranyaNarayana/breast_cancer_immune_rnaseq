@@ -44,6 +44,7 @@ suppressPackageStartupMessages({
     library(pheatmap)
     library(msigdbr)
     library(dplyr)
+    library(limma)
 })
 
 #create output directory
@@ -88,8 +89,10 @@ hallmark_list <- hallmark_sets %>%
     split(.$gs_name)%>%
     lapply(function(x) x$gene_symbol)
 
+cat("Hallmark immune signatures:", length(hallmark_list), "\n")#4
 
-# Custom immune signatures
+
+# Custom immune signatures for literature
 immune_signatures <- list(
   
   # T cell markers
@@ -130,7 +133,40 @@ immune_signatures <- list(
   Immunosuppression = c("TGFB1", "IL10", "VEGFA", "IDO1", "ARG1", "CD274")
 )
 
-# Combine all signatures
+# Combine all signatures list
 all_signatures <- c(hallmark_list, immune_signatures)
 
-cat("\nTotal immune signatures:", length(all_signatures), "\n")
+cat("\nTotal immune signatures:", length(all_signatures), "\n")#22
+
+## -----------------------------
+## 3. Gene set variation analysis
+## -----------------------------
+
+cat("\nRunning GSVA...\n")
+
+# Convert expression to matrix 
+expr_matrix <- as.matrix(expr)
+head(expr_matrix)[,1:5] # has Ensembl IDs
+
+head(all_signatures[[1]]) #has gene symbols, need to convert to Ensembl IDs
+
+#Convert gene sets to match Ensembl IDs in the  expr_matrix
+install.packages("biomaRt")
+library(biomaRt)
+
+
+# Build the parameter object
+params <- gsvaParam(
+  exprData = expr_matrix,      # normalized gene x sample matrix
+  geneSets  = all_signatures,       # named list of gene vectors
+  kcdf      = "Gaussian",      # "Gaussian" for log-CPM/TPM, "Poisson" for counts
+  minSize   = 10,              # min genes per set
+  maxSize   = 500              # max genes per set
+)
+
+cat("Number ofremaing gene sets:", length(gsva(params) |> rownames()))
+
+# Run GSVA
+gsva_scores <- gsva(params)
+
+saveRDS(gsva_scores, "data/processed/immune/gsva_scores.rds")
