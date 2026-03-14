@@ -160,7 +160,7 @@ library(org.Hs.eg.db)  # install via BiocManager::install("org.Hs.eg.db")
 # Strip version suffix from rownames
 rownames(expr_matrix) <- sub("\\..*", "", rownames(expr_matrix))
 
-
+#Extract gene symbols of Ensembl IDs of the expression matrix using AnnotationDbi 
 id_map <- AnnotationDbi::select(
   org.Hs.eg.db,
   keys    = rownames(expr_matrix),
@@ -194,18 +194,39 @@ cat("Covered after mapping:", length(covered), "\n") # 552
 cat("Coverage (%): ", round(length(covered)/length(all_set_genes)*100, 1), "%\n") # 96.2%
 
 
+# Check size of each gene set before gsvaParam filtering to decide the thresholds for minSize and maxSize
+set_sizes <- sapply(all_signatures, length)
+print(sort(set_sizes))
+
+# Check effective size (overlap with expression matrix)
+effective_sizes <- sapply(all_signatures, function(gs) {
+  length(intersect(gs, rownames(expr_matrix_filtered)))
+})
+
+# Summary
+data.frame(
+  gene_set       = names(effective_sizes),
+  original_size  = sapply(all_signatures, length),
+  effective_size = effective_sizes
+) |> print()
+
+
+
 # Build the parameter object for GSVA 
 params <- gsvaParam(
   exprData = expr_matrix_filtered,      # normalized gene with gene symbols x sample matrix
   geneSets  = all_signatures,       # named list of gene vectors
   kcdf      = "Gaussian",      # "Gaussian" for log-CPM/TPM, "Poisson" for counts
-  minSize   = 10,              # min genes per set
+  minSize   = 5,              # min genes per set
   maxSize   = 500              # max genes per set
 )
-
-cat("Number of remaing gene sets:", length(gsva(params) |> rownames()))
 
 # Run GSVA
 gsva_scores <- gsva(params)
 
+dim(gsva_scores) #19 1013
+head(gsva_scores)[,1:5]
+
 saveRDS(gsva_scores, "data/processed/immune/gsva_scores.rds")
+
+
