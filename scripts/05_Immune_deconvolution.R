@@ -46,6 +46,9 @@ suppressPackageStartupMessages({
     library(dplyr)
     library(limma)
     library(biomaRt)
+    library(AnnotationDbi)
+    library(org.Hs.eg.db) 
+    library(tidyr)
 })
 
 #create output directory
@@ -58,12 +61,12 @@ dir.create("data/immune", recursive=TRUE, showWarnings = FALSE)
 ## 1. Load Data
 ## -----------------------------
 expr <- readRDS("data/processed/expression_vst_normalized.rds") #  DESeq2 VST as primary normalized count data 
-cat("Expression data loaded. Dimensions:", dim(expr), "\n")
+cat("Expression data loaded. Dimensions:", dim(expr), "\n") #23059 1013
 
-tpm <- readRDS("data/processed/tpm_filtered.rds")
+tpm <- readRDS("data/processed/tpm_filtered.rds")#23059 1013 
 cat("TPM dimensions:", dim(tpm), "\n")
 
-clinical <- readRDS("data/processed/clinical_filtered.rds")
+clinical <- readRDS("data/processed/clinical_filtered.rds")#1013 19
 cat("Clinical data loaded. Dimensions:", dim(clinical), "\n")
 
 
@@ -138,7 +141,7 @@ cat("\nTotal immune signatures:", length(all_signatures), "\n")#22
 
 saveRDS(all_signatures, "data/immune/all_signatures.rds")
 
-
+#all_signatures <- readRDS("data/immune/all_signatures.rds")
 
 ## ----------------------------------------------------------------------------------------------
 ## 3. Convert Ensembl IDs in the  expr_matrix to gene symbols using AnnotationDbi and org.Hs.eg.db
@@ -149,12 +152,8 @@ head(expr)[,1:5] # has Ensembl IDs
 head(all_signatures[[1]]) #has gene symbols, need to convert to Ensembl IDs
 
 #Convert Ensembl IDs in the  expr_matrix to gene symbols using AnnotationDbi and org.Hs.eg.db
-install.packages(c("AnnotationDbi", "org.Hs.eg.db"))
-library(AnnotationDbi)
-library(org.Hs.eg.db)  # install via BiocManager::install("org.Hs.eg.db")
-
 # Strip version suffix from rownames
-rownames(expr) <- sub("\\..*", "", rownames(expr_matrix))
+rownames(expr) <- sub("\\..*", "", rownames(expr))
 head(rownames(expr))
 
 
@@ -205,16 +204,18 @@ effective_sizes <- sapply(all_signatures, function(gs) {
 })
 
 # Summary
-data.frame(
+S1<- data.frame(
   gene_set       = names(effective_sizes),
   original_size  = sapply(all_signatures, length),
   effective_size = effective_sizes
-) |> print()
+) 
+print(S1)
 
 
 
 ## -----------------------------
-## 4. GENE SET ENRICHMENT ANALYSIS
+## 4. GENE SET ENRICHMENT ANALYSIS: 
+## Each sample gets a score for each gene set based on its expression of the genes in that set
 ## -----------------------------
 
 ## 4a. Gene set variation analysis (Scores -1 to 1 relative to other samples);
@@ -239,9 +240,9 @@ gsva_scores <- gsva(
 cat("GSVA scores dimensions:", dim(gsva_scores), "\n") #19 1013
 head(gsva_scores)[,1:5]
 rownames(gsva_scores) # gene set names
-saveRDS(gsva_scores, "data/processed/immune/gsva_scores.rds")
+saveRDS(gsva_scores, "results/immune/gsva_scores.rds")
 
-
+#------------------------------------------------------------------------------
 ## 4b. Single sample GSEA (ssGSEA) for immune deconvolution (Scores absolute, not relative to other samples);
 ##    How active is this pathway in this sample, regardless of other samples?
 
@@ -256,7 +257,7 @@ ssgsea_scores <- gsva(
   )
 )
 cat("ssGSEA scores dimensions:", dim(ssgsea_scores), "\n")#19 1013 
-saveRDS(ssgsea_scores, "data/processed/immune/ssgsea_scores.rds")
+saveRDS(ssgsea_scores, "results/immune/ssgsea_scores.rds")
 
 
 
@@ -265,14 +266,197 @@ saveRDS(ssgsea_scores, "data/processed/immune/ssgsea_scores.rds")
 ## 7 methods: quanTIseq,MCP-counter, EPIC,xCell, CIBERSORT, Estimate and Custom)
 ## ---------------------------------------------------------------------
 
-# convert Ensembl IDs in the TPM matrix to gene symbols using the same mapping as above
+# convert Ensembl IDs in the TPM  to gene symbols using the same mapping as above
 rownames(tpm) <- sub("\\..*", "", rownames(tpm))
 head(rownames(tpm))
+dim(tpm)#23059  1013
+
+tpm_filtered_symbol <- tpm[id_map_1$ENSEMBL, ] # Subset TPM to only the Ensembl IDs that mapped successfully; same rows, same order
+rownames(tpm_filtered_symbol) <- id_map_1$SYMBOL        # same gene symbols as expr_filtered_symbol
 
 
-tpm_filtered <- tpm[rownames(tpm) %in% id_map_1$ENSEMBL, ] # Subset TPM to only the Ensembl IDs that mapped successfully
-cat("TPM dimensions after filtering:", dim(tpm_filtered), "\n") # 18568 1013
+cat("expr dimensions:", dim(expr_filtered_symbol), "\n")  # 18568 1013
+cat("TPM dimensions: ", dim(tpm_filtered_symbol),  "\n")  # 18568 1013 
 
-tpm_filtered <- tpm_filtered[id_map_1$ENSEMBL, ] #Reorder to match id_map_1 exactly
-rownames(tpm_filtered) <- id_map_1$SYMBOL #Assign gene symbols
-head(rownames(tpm_filtered))
+# Verify they are perfectly aligned
+identical(rownames(expr_filtered_symbol), rownames(tpm_filtered_symbol))  # TRUE
+identical(colnames(expr_filtered_symbol), colnames(tpm_filtered_symbol))  # TRUE
+
+
+saveRDS(tpm_filtered_symbol, "data/processed/immune/tpm_filtered_symbol.rds")
+
+#----------------------------------------------------------------------------------
+# Method 1: quanTIseq
+cat("\nRunning quanTIseq deconvolution...\n")
+
+quantiseq_results <- deconvolute_quantiseq(
+  gene_expression = tpm_filtered_symbol, #  genes x samples, linear TPM
+  tumor = TRUE, # activates tumor-mode deconvolution
+  arrays = FALSE, #RNA-seq data, not microarray
+  scale_mrna = TRUE #corrects for cell-type mRNA content differences
+)
+cat("quantiseq_results dimensions: ", dim(quantiseq_results), "\n") #  11 1013
+rownames(quantiseq_results)
+head(quantiseq_results)[1:5,1:5]
+saveRDS(quantiseq_results, "results/immune/quantiseq_results.rds")
+
+# Summarize results across samples for each cell type
+quantiseq_summary <- as.data.frame(t(quantiseq_results)) %>%
+  pivot_longer(cols = everything(), names_to = "cell_type", values_to = "fraction") %>%
+  group_by(cell_type) %>%
+  summarise(
+    n        = n(),
+    mean     = round(mean(fraction, na.rm = TRUE), 4),
+    sd       = round(sd(fraction, na.rm = TRUE), 4),
+    median   = round(median(fraction, na.rm = TRUE), 4),
+    IQR      = round(IQR(fraction, na.rm = TRUE), 4),
+    min      = round(min(fraction, na.rm = TRUE), 4),
+    max      = round(max(fraction, na.rm = TRUE), 4),
+    .groups  = "drop"
+  ) %>%
+  arrange(desc(mean))
+quantiseq_summary
+write.csv(quantiseq_summary, "results/immune/quantiseq_summary.csv", row.names = FALSE)
+
+#-----------------------------------------------------------------------------
+# Method 2: MCP-counter:Scores are relative, not absolute
+cat("\nRunning MCP-counter...\n")
+mcp_results <- deconvolute_mcp_counter(
+  gene_expression =tpm_filtered_symbol # genes x samples, linear TPM
+)
+cat("Dimensions of MCP-counter results: ", dim(mcp_results), "\n") # 10 1013
+rownames(mcp_results)
+head(mcp_results)[1:5,1:5]
+saveRDS(mcp_results, "results/immune/mcp_results.rds")
+
+#summarize results across samples for each cell type
+mcp_summary <- as.data.frame(t(mcp_results)) %>%
+  pivot_longer(cols = everything(), names_to = "cell_type", values_to = "score") %>%
+  group_by(cell_type) %>%
+  summarise(
+    n        = n(),
+    mean     = round(mean(score, na.rm = TRUE), 4),
+    sd       = round(sd(score, na.rm = TRUE), 4),
+    median   = round(median(score, na.rm = TRUE), 4),
+    IQR      = round(IQR(score, na.rm = TRUE), 4),
+    min      = round(min(score, na.rm = TRUE), 4),
+    max      = round(max(score, na.rm = TRUE), 4),
+    .groups  = "drop"
+  ) %>%
+  arrange(desc(mean))
+mcp_summary
+write.csv(mcp_summary, "results/immune/mcp_summary.csv", row.names = FALSE)
+
+#-----------------------------------------------------------------------
+# Method 3: EPIC:Fractions are absolute and sum to 1, but only for the cell types in the reference (B cells, CAFs, endothelial cells, macrophages, CD4 T cells, CD8 T cells, NK cells, and other cells)
+cat("\nRunning EPIC...\n")
+epic_results <- deconvolute_epic(
+  gene_expression = tpm_filtered_symbol, ## genes x samples, linear TPM
+  tumor = TRUE, ## use tumor-specific reference profiles
+  scale_mrna = TRUE
+)
+cat("Dimensions of EPIC results: ", dim(epic_results), "\n") # 8 1013
+rownames(epic_results)
+head(epic_results)[1:5,1:5]
+saveRDS(epic_results, "results/immune/epic_results.rds")
+
+#summarize results across samples for each cell type
+epic_summary <- as.data.frame(t(epic_results)) %>%
+  pivot_longer(cols = everything(), names_to = "cell_type", values_to = "fraction") %>%
+  group_by(cell_type) %>%
+  summarise(
+    n        = n(),
+    mean     = round(mean(fraction, na.rm = TRUE), 4),
+    sd       = round(sd(fraction, na.rm = TRUE), 4),
+    median   = round(median(fraction, na.rm = TRUE), 4),
+    IQR      = round(IQR(fraction, na.rm = TRUE), 4),
+    min      = round(min(fraction, na.rm = TRUE), 4),
+    max      = round(max(fraction, na.rm = TRUE), 4),
+    .groups  = "drop"
+  ) %>%
+  arrange(desc(mean))
+epic_summary
+write.csv(epic_summary, "results/immune/epic_summary.csv", row.names = FALSE)
+
+
+#---------------------------------------------------------------------------
+# Method 4: xCell:Scores are enrichment-based, not fractions, and are relative to other samples, but cover a very wide range of cell types (67   immune and stromal cell types)
+cat("\nRunning xCell...\n")
+xcell_results <- deconvolute_xcell(
+  gene_expression = tpm_filtered_symbol, ## genes x samples, linear TPM
+  arrays = FALSE #RNA-seq mode
+)
+cat("Dimensions of xCell results: ", dim(xcell_results), "\n") # 67 1013
+rownames(xcell_results)
+head(xcell_results)[1:5,1:5]
+saveRDS(xcell_results, "results/immune/xcell_results.rds")
+
+#sumarize results across samples for each cell type
+xcell_summary <- as.data.frame(t(xcell_results)) %>%
+  pivot_longer(cols = everything(), names_to = "cell_type", values_to = "score") %>%
+  group_by(cell_type) %>% 
+  summarise(
+    n        = n(),
+    mean     = round(mean(score, na.rm = TRUE), 4),
+    sd       = round(sd(score, na.rm = TRUE), 4),
+    median   = round(median(score, na.rm = TRUE), 4),
+    IQR      = round(IQR(score, na.rm = TRUE), 4),
+    min      = round(min(score, na.rm = TRUE), 4),
+    max      = round(max(score, na.rm = TRUE), 4),
+    .groups  = "drop"
+  ) %>%
+  arrange(desc(mean))
+xcell_summary
+tail(xcell_summary, n=10)
+write.csv(xcell_summary, "results/immune/xcell_summary.csv", row.names = FALSE)
+
+#Summary of scores
+summary_scores <- xcell_results[c("ImmuneScore",
+                                   "StromaScore",
+                                   "MicroenvironmentScore"), ]
+
+xcell_score_summary <-as.data.frame(t(summary_scores)) %>%
+  pivot_longer(everything(), names_to = "score_type", values_to = "score") %>%
+  group_by(score_type) %>%
+  summarise(
+    mean   = round(mean(score,   na.rm = TRUE), 4),
+    sd     = round(sd(score,     na.rm = TRUE), 4),
+    median = round(median(score, na.rm = TRUE), 4),
+    min    = round(min(score,    na.rm = TRUE), 4),
+    max    = round(max(score,    na.rm = TRUE), 4),
+    .groups = "drop"
+  )
+xcell_score_summary
+write.csv(xcell_score_summary, "results/immune/xcell_score_summary.csv", row.names = FALSE)
+
+#---------------------------------------------------------------------------
+#Method 5: CIBERSORT: Fractions are relative to other samples and only cover 22 immune cell types
+cat("\nRunning CIBERSORT...\n")
+
+#Filter to CIBERSORT LM22 signature genes only
+# Download LM22.txt from CIBERSORTx portal
+                   
+lm22 <- read.table("data/immune/LM22.txt",sep= "\t",header = TRUE, row.names = 1,check.names = FALSE)
+cat("Dimension of lm22:", dim(lm22), "\n") # 547 22             
+                   
+#Extract overlapping genes                  
+lm22_genes    <- rownames(lm22)
+overlap_genes <- intersect(lm22_genes, rownames(tpm_filtered_symbol))
+
+cat("LM22 genes found in your matrix:", length(overlap_genes), "\n")  # 435 
+
+tpm_cibersort <- tpm_filtered_symbol[overlap_genes, ]
+cat("Final dimensions:", dim(tpm_cibersort), "\n")  # 435  x 1013
+head(tpm_cibersort)[1:5,1:5]
+
+tpm_cibersort <-as.data.frame(tpm_cibersort)
+tpm_cibersort <- tibble::rownames_to_column(tpm_cibersort, "GeneSymbol")
+write.table(tpm_cibersort,"data/processed/immune/tpm_cibersort.txt",sep= "\t",row.names = FALSE, quote = FALSE)
+
+
+# cibersort_input <- as.data.frame(tpm_filtered_symbol)
+# cibersort_input <- tibble::rownames_to_column(cibersort_input, "GeneSymbol")
+# dim(cibersort_input)
+# head(cibersort_input, n=5)[,1:5]
+
+# write.table(cibersort_input,"data/processed/immune/cibersort_input.txt",sep= "\t",row.names = FALSE, quote = FALSE)
