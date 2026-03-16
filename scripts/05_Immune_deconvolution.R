@@ -49,6 +49,7 @@ suppressPackageStartupMessages({
     library(AnnotationDbi)
     library(org.Hs.eg.db) 
     library(tidyr)
+    library(tidyverse)
 })
 
 #create output directory
@@ -178,6 +179,13 @@ cat("Filtered expression filtered symbol dimensions:", dim(expr_filtered_symbol)
 
 rownames(expr_filtered_symbol) <- id_map_1$SYMBOL #Assign gene symbols
 head(rownames(expr_filtered_symbol))
+
+dup_genes<- rownames(expr_filtered_symbol)[duplicated(rownames(expr_filtered_symbol))]
+cat("Number of duplicated gene symbols:", length(dup_genes), "\n") #0
+
+
+
+
 
 saveRDS(expr_filtered_symbol, "data/processed/immune/expression_filtered_symbol.rds")
 
@@ -468,7 +476,8 @@ lost_in_mapping <- setdiff(missing,
                             rownames(tpm_filtered_symbol))
 cat("Genes lost in ID mapping:", length(lost_in_mapping), "\n")
 
-
+dup_genes_cibersort <- rownames(tpm_filtered_symbol)[duplicated(rownames(tpm_filtered_symbol))]
+cat("Number of duplicated gene symbols in CIBERSORT matrix:", length(dup_genes_cibersort), "\n") #0
 
 
 # 1013 samples split into 5 batches
@@ -486,10 +495,12 @@ dir.create("data/processed/cibersort",
 
 for (batch_name in names(batch_plan)) {
   idx      <- batch_plan[[batch_name]]
-  batch_df <- tpm_cibersort_overlap[, idx] |>
-    as.data.frame() 
+  batch_df <- tpm_cibersort_overlap[, idx] %>% 
+    as.data.frame() %>% 
+    tibble::rownames_to_column("GeneSymbol")
 
-  write.table(
+
+write.table(
     batch_df,
     sprintf("data/processed/cibersort/%s.txt", batch_name),
     sep       = "\t",
@@ -500,6 +511,42 @@ for (batch_name in names(batch_plan)) {
   cat(sprintf("%s: samples %4d - %4d (%d samples)\n",
               batch_name, min(idx), max(idx), length(idx)))
 }
+
+
+# After downloading all results from portal
+# Place all CIBERSORTx result CSVs in one folder
+
+result_files <- list.files(
+  "data/processed/cibersort/results",
+  pattern    = "\\.csv$",
+  full.names = TRUE
+)
+
+cat("Result files found:", length(result_files), "\n")  # should be 6
+
+cibersort_merged <- result_files %>% 
+  lapply(read.csv, check.names = FALSE) %>% 
+  bind_rows()
+
+cat("Total samples merged:", nrow(cibersort_merged), "\n")  # should be 1013
+
+# Verify no samples duplicated
+cat("Unique samples:      ", 
+    n_distinct(cibersort_merged[, 1]), "\n")  # should also be 1013
+
+# Verify sample order matches your metadata
+cibersort_merged <- cibersort_merged %>% 
+  rename(barcode = 1) %>% 
+  arrange(match(barcode, colnames(tpm_filtered_symbol)))  # reorder to match TPM
+
+# Save merged results
+saveRDS(cibersort_merged,
+        "data/processed/deconv/cibersort_results_merged.rds")
+write.csv(cibersort_merged,
+          "data/processed/deconv/cibersort_results_merged.csv",
+          row.names = FALSE)
+
+message("CIBERSORT results merged and saved.")
 
 
 
