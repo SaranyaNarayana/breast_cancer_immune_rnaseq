@@ -439,6 +439,7 @@ write.csv(xcell_score_summary, "results/immune/xcell_score_summary.csv", row.nam
 
 #---------------------------------------------------------------------------
 #Method 5: CIBERSORT: Fractions are relative to other samples and only cover 22 immune cell types
+##Permutation=1000
 cat("\nRunning CIBERSORT...\n")
 
 #Filter to CIBERSORT LM22 signature genes only
@@ -512,9 +513,7 @@ write.table(
               batch_name, min(idx), max(idx), length(idx)))
 }
 
-
-# After downloading all results from portal
-# Place all CIBERSORTx result CSVs in one folder
+# Combina all the downloaded CIBERSORTx result CSVs
 
 result_files <- list.files(
   "data/processed/cibersort/results",
@@ -523,6 +522,8 @@ result_files <- list.files(
 )
 
 cat("Result files found:", length(result_files), "\n")  # should be 6
+head(result_files)
+
 
 cibersort_merged <- result_files %>% 
   lapply(read.csv, check.names = FALSE) %>% 
@@ -547,9 +548,6 @@ write.csv(cibersort_merged,
           row.names = FALSE)
 
 message("CIBERSORT results merged and saved.")
-
-
-
 
 
 
