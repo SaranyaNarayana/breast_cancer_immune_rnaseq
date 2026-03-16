@@ -141,7 +141,7 @@ cat("\nTotal immune signatures:", length(all_signatures), "\n")#22
 
 saveRDS(all_signatures, "data/immune/all_signatures.rds")
 
-#all_signatures <- readRDS("data/immune/all_signatures.rds")
+all_signatures <- readRDS("data/immune/all_signatures.rds")
 
 ## ----------------------------------------------------------------------------------------------
 ## 3. Convert Ensembl IDs in the  expr_matrix to gene symbols using AnnotationDbi and org.Hs.eg.db
@@ -445,27 +445,148 @@ overlap_genes <- intersect(lm22_genes, rownames(tpm_filtered_symbol))
 
 cat("LM22 genes found in your matrix:", length(overlap_genes), "\n")  # 435 
 
-tpm_cibersort <- tpm_filtered_symbol[overlap_genes, ]
-cat("Final dimensions:", dim(tpm_cibersort), "\n")  # 435  x 1013
-head(tpm_cibersort)[1:5,1:5]
+tpm_cibersort_overlap <- tpm_filtered_symbol[overlap_genes, ]
+cat("Final dimensions:", dim(tpm_cibersort_overlap), "\n")  # 435  x 1013
+head(tpm_cibersort_overlap)[1:5,1:5]
 
-tpm_cibersort <-as.data.frame(tpm_cibersort)
-tpm_cibersort <- tibble::rownames_to_column(tpm_cibersort, "GeneSymbol")
-write.table(tpm_cibersort,"data/processed/immune/tpm_cibersort.txt",sep= "\t",row.names = FALSE, quote = FALSE)
+# tpm_cibersort <-as.data.frame(tpm_cibersort)
+# tpm_cibersort <- tibble::rownames_to_column(tpm_cibersort, "GeneSymbol")
+# write.table(tpm_cibersort,"data/processed/immune/tpm_cibersort.txt",sep= "\t",row.names = FALSE, quote = FALSE)
 
-# Correct — use rownames() for a matrix
+#checking missing genes 
 missing <- setdiff(lm22_genes, rownames(tpm_filtered_symbol))
 cat("Missing genes:", length(missing), "\n")
 head(missing,20)
 
+#case mismatch check
+missing_upper <- toupper(missing)
+matrix_upper  <- toupper(rownames(tpm_filtered_symbol))
+case_matches  <- sum(missing_upper %in% matrix_upper)
+cat("Recoverable by case fix:", case_matches, "\n")
+
+lost_in_mapping <- setdiff(missing,
+                            rownames(tpm_filtered_symbol))
+cat("Genes lost in ID mapping:", length(lost_in_mapping), "\n")
+
+
+
+
+# 1013 samples split into 5 batches
+
+
+batch_plan <- list(
+  batch_1 = 1:200,
+  batch_2 = 201:400,
+  batch_3 = 401:600,
+  batch_4 = 601:800,
+  batch_5 = 801:1013   # 213 samples
+)
+
+
+for (batch_name in names(batch_plan)) {
+  idx      <- batch_plan[[batch_name]]
+  batch_df <- tpm_cibersort_overlap[, idx] |>
+    as.data.frame() 
+
+  write.table(
+    batch_df,
+    sprintf("data/processed/cibersort/%s.txt", batch_name),
+    sep       = "\t",
+    row.names = FALSE,
+    quote     = FALSE
+  )
+
+  cat(sprintf("%s: samples %4d - %4d (%d samples)\n",
+              batch_name, min(idx), max(idx), length(idx)))
+}
 
 
 
 
 
-# cibersort_input <- as.data.frame(tpm_filtered_symbol)
-# cibersort_input <- tibble::rownames_to_column(cibersort_input, "GeneSymbol")
-# dim(cibersort_input)
-# head(cibersort_input, n=5)[,1:5]
 
-# write.table(cibersort_input,"data/processed/immune/cibersort_input.txt",sep= "\t",row.names = FALSE, quote = FALSE)
+
+
+
+
+
+
+
+
+
+
+batch_size <- 250   # conservative — avoids memory error reliably
+                    # 250 also works but 200 is safer
+
+n_batches  <- ceiling(ncol(tpm_cibersort_overlap) / batch_size)
+cat("Number of batches needed:", n_batches, "\n")  # 6 batches
+
+#dir.create("data/processed/cibersort", 
+           #recursive = TRUE, showWarnings = FALSE)
+
+
+for (i in seq_len(n_batches)) {
+  start_idx <- (i - 1) * batch_size + 1
+  end_idx   <- min(i * batch_size, ncol(tpm_cibersort_overlap))
+
+  batch_df  <- tpm_cibersort_overlap[, start_idx:end_idx] %>%
+    as.data.frame() 
+
+  write.table(
+    batch_df, sprintf("data/processed/cibersort/batch_%02d.txt", i),
+    sep       = "\t",
+    row.names = FALSE,
+    quote     = FALSE
+  )
+
+  cat(sprintf("Batch %02d: samples %4d - %4d (%d samples)\n",
+              i, start_idx, end_idx, end_idx - start_idx + 1))
+}    
+
+
+
+
+
+# Batches 1-4: 200 samples each
+# Batch 5: remaining 213 samples
+
+batch_plan <- list(
+  batch_1 = 1:200,
+  batch_2 = 201:400,
+  batch_3 = 401:600,
+  batch_4 = 601:800,
+  batch_5 = 801:1013   # 213 samples
+)
+
+dir.create("data/processed/cibersort/cibersort_batches",
+           recursive = TRUE, showWarnings = FALSE)
+
+# Subset to LM22 genes
+overlap  <- intersect(rownames(lm22_matrix), rownames(tpm_filtered_symbol))
+tpm_lm22 <- tpm_filtered_symbol[overlap, ]
+
+for (batch_name in names(batch_plan)) {
+  idx      <- batch_plan[[batch_name]]
+  batch_df <- tpm_lm22[, idx] |>
+    as.data.frame() |>
+    tibble::rownames_to_column("GeneSymbol")
+
+  write.table(
+    batch_df,
+    sprintf("data/processed/deconv/cibersort_batches/%s.txt", batch_name),
+    sep       = "\t",
+    row.names = FALSE,
+    quote     = FALSE
+  )
+
+  cat(sprintf("%s: samples %4d - %4d (%d samples)\n",
+              batch_name, min(idx), max(idx), length(idx)))
+}
+```
+```
+batch_1: samples    1 -  200 (200 samples)
+batch_2: samples  201 -  400 (200 samples)
+batch_3: samples  401 -  600 (200 samples)
+batch_4: samples  601 -  800 (200 samples)
+batch_5: samples  801 - 1013 (213 samples)
+
