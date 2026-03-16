@@ -472,8 +472,6 @@ cat("Genes lost in ID mapping:", length(lost_in_mapping), "\n")
 
 
 # 1013 samples split into 5 batches
-
-
 batch_plan <- list(
   batch_1 = 1:200,
   batch_2 = 201:400,
@@ -482,6 +480,9 @@ batch_plan <- list(
   batch_5 = 801:1013   # 213 samples
 )
 
+
+dir.create("data/processed/cibersort", 
+           recursive = TRUE, showWarnings = FALSE)
 
 for (batch_name in names(batch_plan)) {
   idx      <- batch_plan[[batch_name]]
@@ -512,81 +513,4 @@ for (batch_name in names(batch_plan)) {
 
 
 
-
-
-
-batch_size <- 250   # conservative — avoids memory error reliably
-                    # 250 also works but 200 is safer
-
-n_batches  <- ceiling(ncol(tpm_cibersort_overlap) / batch_size)
-cat("Number of batches needed:", n_batches, "\n")  # 6 batches
-
-#dir.create("data/processed/cibersort", 
-           #recursive = TRUE, showWarnings = FALSE)
-
-
-for (i in seq_len(n_batches)) {
-  start_idx <- (i - 1) * batch_size + 1
-  end_idx   <- min(i * batch_size, ncol(tpm_cibersort_overlap))
-
-  batch_df  <- tpm_cibersort_overlap[, start_idx:end_idx] %>%
-    as.data.frame() 
-
-  write.table(
-    batch_df, sprintf("data/processed/cibersort/batch_%02d.txt", i),
-    sep       = "\t",
-    row.names = FALSE,
-    quote     = FALSE
-  )
-
-  cat(sprintf("Batch %02d: samples %4d - %4d (%d samples)\n",
-              i, start_idx, end_idx, end_idx - start_idx + 1))
-}    
-
-
-
-
-
-# Batches 1-4: 200 samples each
-# Batch 5: remaining 213 samples
-
-batch_plan <- list(
-  batch_1 = 1:200,
-  batch_2 = 201:400,
-  batch_3 = 401:600,
-  batch_4 = 601:800,
-  batch_5 = 801:1013   # 213 samples
-)
-
-dir.create("data/processed/cibersort/cibersort_batches",
-           recursive = TRUE, showWarnings = FALSE)
-
-# Subset to LM22 genes
-overlap  <- intersect(rownames(lm22_matrix), rownames(tpm_filtered_symbol))
-tpm_lm22 <- tpm_filtered_symbol[overlap, ]
-
-for (batch_name in names(batch_plan)) {
-  idx      <- batch_plan[[batch_name]]
-  batch_df <- tpm_lm22[, idx] |>
-    as.data.frame() |>
-    tibble::rownames_to_column("GeneSymbol")
-
-  write.table(
-    batch_df,
-    sprintf("data/processed/deconv/cibersort_batches/%s.txt", batch_name),
-    sep       = "\t",
-    row.names = FALSE,
-    quote     = FALSE
-  )
-
-  cat(sprintf("%s: samples %4d - %4d (%d samples)\n",
-              batch_name, min(idx), max(idx), length(idx)))
-}
-```
-```
-batch_1: samples    1 -  200 (200 samples)
-batch_2: samples  201 -  400 (200 samples)
-batch_3: samples  401 -  600 (200 samples)
-batch_4: samples  601 -  800 (200 samples)
-batch_5: samples  801 - 1013 (213 samples)
 
