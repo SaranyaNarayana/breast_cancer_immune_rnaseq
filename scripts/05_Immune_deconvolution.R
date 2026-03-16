@@ -453,6 +453,15 @@ tpm_cibersort <-as.data.frame(tpm_cibersort)
 tpm_cibersort <- tibble::rownames_to_column(tpm_cibersort, "GeneSymbol")
 write.table(tpm_cibersort,"data/processed/immune/tpm_cibersort.txt",sep= "\t",row.names = FALSE, quote = FALSE)
 
+# Correct — use rownames() for a matrix
+missing <- setdiff(lm22_genes, rownames(tpm_filtered_symbol))
+cat("Missing genes:", length(missing), "\n")
+head(missing,20)
+
+
+
+
+
 
 # cibersort_input <- as.data.frame(tpm_filtered_symbol)
 # cibersort_input <- tibble::rownames_to_column(cibersort_input, "GeneSymbol")
