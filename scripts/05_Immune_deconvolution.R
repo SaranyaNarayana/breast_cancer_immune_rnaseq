@@ -545,18 +545,17 @@ saveRDS(cibersort_merged,"results/immune/cibersort_results_merged.rds")
 head(cibersort_merged)[,1:5]
 colnames(cibersort_merged)
 
-
-
-
 # Verify sample order matches your metadata
+dim(cibersort_merged)#1013   26
 cibersort_merged_1 <- cibersort_merged %>% 
-  rename(barcode = 1) %>% 
+  rename(barcode = "Mixture") %>% 
   arrange(match(barcode, colnames(tpm_filtered_symbol)))  # reorder to match TPM
 head(cibersort_merged_1)[,1:5]
 head(tpm_filtered_symbol)[,1:5]
 
 # Save merged results
-write.csv(cibersort_merged_1,"data/processed/deconv/cibersort_results_merged_barcode.csv", row.names = FALSE)
+saveRDS(cibersort_merged_1,"results/immune/cibersort_results_merged_barcode.rds")
+write.csv(cibersort_merged_1,"data/processed/immune/cibersort_results_merged_barcode.csv", row.names = FALSE)
 
 
 
@@ -616,10 +615,10 @@ dim(epic_results) # 8 1013
 head(epic_results)[,1:5]
 rownames(epic_results) # cell types in rows, samples in columns
 
-epic_df <- as.data.frame(t(epic_results[, -1]))
+epic_df <- as.data.frame(t(epic_results))
 colnames(epic_df) <- paste0("EPIC_", colnames(epic_df))
 head(epic_df)[,1:5]
-
+dim(epic_df) # 1013 8
 
 #Xcell
 xcell_results <- readRDS("results/immune/xcell_results.rds")
@@ -630,20 +629,28 @@ rownames(xcell_results) # cell types in rows, samples in columns
 xcell_df <- as.data.frame(t(xcell_results))
 colnames(xcell_df) <- paste0("xCell_", colnames(xcell_df))
 head(xcell_df)[,1:5]
+dim(xcell_df) # 1013 67
+
+
 
 #cibersort
-CIBERSORT results were saved as "results/immune/cibersort_results_merged.rds"
-cibersort_results <- readRDS("results/immune/cibersort_results_merged.rds")
+cibersort_results <- readRDS("results/immune/cibersort_results_merged_barcode.rds")
 dim(cibersort_results) # 1013 26 
 head(cibersort_results)[,1:5]
-rownames(cibersort_results) # samples in rows, cell types in columns
 
 
-cibersort_df <- as.data.frame(t(cibersort_results[, -1]))
+cibersort_df <- cibersort_results %>%
+  column_to_rownames("barcode") %>%
+  as.data.frame()
+head(cibersort_df)[,1:5]
+
 colnames(cibersort_df) <- paste0("CIBERSORT_", colnames(cibersort_df))
-
-
+head(cibersort_df)[,1:5]
+dim(cibersort_df) # 1013  25 (1 barcode + 22 cell types + 2 summary scores)
 # Combine all features
+
+
+
 immune_features <- cbind(
   gsva_df,
   ssgsea_df,
@@ -653,6 +660,9 @@ immune_features <- cbind(
   xcell_df,
   cibersort_df
 )
+dim(immune_features) # 1013  159  (19+19+11+10+8+67+22) = 156 features
+head(immune_features)[,1:5]
+
 
 # Ensure sample IDs match
 immune_features$sample <- colnames(expr)
@@ -661,7 +671,7 @@ saveRDS(immune_features, "data/processed/immune/immune_features_combined.rds")
 
 cat("\nTotal immune features:", ncol(immune_features) - 1, "\n")
 
-
+colnames(immune_features)[1:10]
 
 
 
