@@ -566,42 +566,91 @@ write.csv(cibersort_merged_1,"data/processed/deconv/cibersort_results_merged_bar
 ## ---------------------------------------------------------------------
 # Transpose deconvolution results to have samples as rows
 
+#gsva
 gsva_scores  <- readRDS("results/immune/gsva_scores.rds")
 dim(gsva_scores) # 19 1013
 head(gsva_scores)[,1:5]
+rownames(gsva_scores) # gene set names in rows, samples in columns
 
 gsva_df <- as.data.frame(t(gsva_scores))
+head(gsva_df)[,1:5]
+
 colnames(gsva_df) <- paste0("GSVA_", colnames(gsva_df))
+head(gsva_df)[,1:5]
+
+#ssgsea
+ssgsea_scores <- readRDS("results/immune/ssgsea_scores.rds")
+dim(ssgsea_scores) # 19 1013
+head(ssgsea_scores)[,1:5]
+rownames(ssgsea_scores) # gene set names in rows, samples in columns
 
 ssgsea_df <- as.data.frame(t(ssgsea_scores))
+head(ssgsea_df)[,1:5]
 colnames(ssgsea_df) <- paste0("ssGSEA_", colnames(ssgsea_df))
+head(ssgsea_df)[,1:5]
 
+#quanTIseq
+quantiseq_results <- readRDS("results/immune/quantiseq_results.rds")
+dim(quantiseq_results) # 11 1013
+head(quantiseq_results)[,1:5]
+rownames(quantiseq_results) # cell types in rows, samples in columns
 
-quantiseq_df <- as.data.frame(t(quantiseq_results[, -1]))
-colnames(quantiseq_df) <- paste0("quanTIseq_", quantiseq_results$cell_type)
+quantiseq_df <- as.data.frame(t(quantiseq_results))
+head(quantiseq_df)[,1:5]
+colnames(quantiseq_df) <- paste0("quanTIseq_", colnames(quantiseq_df))
+head(quantiseq_df)[,1:5]
 
-mcp_df <- as.data.frame(t(mcp_results[, -1]))
-colnames(mcp_df) <- paste0("MCP_", mcp_results$cell_type)
+#MCP-counter
+mcp_results <- readRDS("results/immune/mcp_results.rds")
+dim(mcp_results) # 10 1013
+head(mcp_results)[,1:5]
+rownames(mcp_results) # cell types in rows, samples in columns
+
+mcp_df <- as.data.frame(t(mcp_results))
+colnames(mcp_df) <- paste0("MCP_", colnames(mcp_df))
+head(mcp_df)[,1:5]
+
+#EPIC
+epic_results <- readRDS("results/immune/epic_results.rds")
+dim(epic_results) # 8 1013
+head(epic_results)[,1:5]
+rownames(epic_results) # cell types in rows, samples in columns
 
 epic_df <- as.data.frame(t(epic_results[, -1]))
-colnames(epic_df) <- paste0("EPIC_", epic_results$cell_type)
+colnames(epic_df) <- paste0("EPIC_", colnames(epic_df))
+head(epic_df)[,1:5]
 
-xcell_df <- as.data.frame(t(xcell_results[, -1]))
-colnames(xcell_df) <- paste0("xCell_", xcell_results$cell_type)
+
+#Xcell
+xcell_results <- readRDS("results/immune/xcell_results.rds")
+dim(xcell_results) # 67 1013
+head(xcell_results)[,1:5]
+rownames(xcell_results) # cell types in rows, samples in columns
+
+xcell_df <- as.data.frame(t(xcell_results))
+colnames(xcell_df) <- paste0("xCell_", colnames(xcell_df))
+head(xcell_df)[,1:5]
+
+#cibersort
+CIBERSORT results were saved as "results/immune/cibersort_results_merged.rds"
+cibersort_results <- readRDS("results/immune/cibersort_results_merged.rds")
+dim(cibersort_results) # 1013 26 
+head(cibersort_results)[,1:5]
+rownames(cibersort_results) # samples in rows, cell types in columns
+
 
 cibersort_df <- as.data.frame(t(cibersort_results[, -1]))
-colnames(cibersort_df) <- paste0("CIBERSORT_", cibersort_results$cell_type)
+colnames(cibersort_df) <- paste0("CIBERSORT_", colnames(cibersort_df))
 
 
 # Combine all features
 immune_features <- cbind(
-  estimate_results,
+  gsva_df,
+  ssgsea_df,
   quantiseq_df,
   mcp_df,
   epic_df,
   xcell_df,
-  gsva_df,
-  ssgsea_df,
   cibersort_df
 )
 
