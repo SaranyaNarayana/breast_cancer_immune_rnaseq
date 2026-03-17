@@ -270,8 +270,8 @@ saveRDS(ssgsea_scores, "results/immune/ssgsea_scores.rds")
 
 
 ## ------------------------------------------------------------
-## 5. Immune deconvolution using 7 different methods 
-## 7 methods: quanTIseq,MCP-counter, EPIC,xCell, CIBERSORT, Estimate and Custom)
+## 5. Immune deconvolution using 5 different methods 
+## 5 methods: quanTIseq,MCP-counter, EPIC,xCell, and CIBERSORT)
 ## ---------------------------------------------------------------------
 
 # convert Ensembl IDs in the TPM  to gene symbols using the same mapping as above
@@ -398,6 +398,13 @@ cat("Dimensions of xCell results: ", dim(xcell_results), "\n") # 67 1013
 rownames(xcell_results)
 head(xcell_results)[1:5,1:5]
 saveRDS(xcell_results, "results/immune/xcell_results.rds")
+
+
+xcell_results<- readRDS("results/immune/xcell_results.rds")
+dim(xcell_results) # 67 1013
+head(xcell_results)[,1:5]
+
+
 
 #sumarize results across samples for each cell type
 xcell_summary <- as.data.frame(t(xcell_results)) %>%
@@ -532,26 +539,78 @@ cibersort_merged <- result_files %>%
 cat("Total samples merged:", nrow(cibersort_merged), "\n")  # should be 1013
 
 # Verify no samples duplicated
-cat("Unique samples:      ", 
-    n_distinct(cibersort_merged[, 1]), "\n")  # should also be 1013
+cat("Unique samples:", n_distinct(cibersort_merged[, 1]), "\n")  # should also be 1013
+cat("Dimensions of merged CIBERSORT results:", dim(cibersort_merged), "\n")  # should be 1013 x 26 (1 barcode + 22 cell types)
+saveRDS(cibersort_merged,"results/immune/cibersort_results_merged.rds")
+head(cibersort_merged)[,1:5]
+colnames(cibersort_merged)
+
+
+
 
 # Verify sample order matches your metadata
-cibersort_merged <- cibersort_merged %>% 
+cibersort_merged_1 <- cibersort_merged %>% 
   rename(barcode = 1) %>% 
   arrange(match(barcode, colnames(tpm_filtered_symbol)))  # reorder to match TPM
+head(cibersort_merged_1)[,1:5]
+head(tpm_filtered_symbol)[,1:5]
 
 # Save merged results
-saveRDS(cibersort_merged,
-        "data/processed/deconv/cibersort_results_merged.rds")
-write.csv(cibersort_merged,
-          "data/processed/deconv/cibersort_results_merged.csv",
-          row.names = FALSE)
-
-message("CIBERSORT results merged and saved.")
+write.csv(cibersort_merged_1,"data/processed/deconv/cibersort_results_merged_barcode.csv", row.names = FALSE)
 
 
 
 
+## ------------------------------------------------------------
+## 6. Combine and compare results across methods
+## ---------------------------------------------------------------------
+# Transpose deconvolution results to have samples as rows
+
+gsva_scores  <- readRDS("results/immune/gsva_scores.rds")
+dim(gsva_scores) # 19 1013
+head(gsva_scores)[,1:5]
+
+gsva_df <- as.data.frame(t(gsva_scores))
+colnames(gsva_df) <- paste0("GSVA_", colnames(gsva_df))
+
+ssgsea_df <- as.data.frame(t(ssgsea_scores))
+colnames(ssgsea_df) <- paste0("ssGSEA_", colnames(ssgsea_df))
+
+
+quantiseq_df <- as.data.frame(t(quantiseq_results[, -1]))
+colnames(quantiseq_df) <- paste0("quanTIseq_", quantiseq_results$cell_type)
+
+mcp_df <- as.data.frame(t(mcp_results[, -1]))
+colnames(mcp_df) <- paste0("MCP_", mcp_results$cell_type)
+
+epic_df <- as.data.frame(t(epic_results[, -1]))
+colnames(epic_df) <- paste0("EPIC_", epic_results$cell_type)
+
+xcell_df <- as.data.frame(t(xcell_results[, -1]))
+colnames(xcell_df) <- paste0("xCell_", xcell_results$cell_type)
+
+cibersort_df <- as.data.frame(t(cibersort_results[, -1]))
+colnames(cibersort_df) <- paste0("CIBERSORT_", cibersort_results$cell_type)
+
+
+# Combine all features
+immune_features <- cbind(
+  estimate_results,
+  quantiseq_df,
+  mcp_df,
+  epic_df,
+  xcell_df,
+  gsva_df,
+  ssgsea_df,
+  cibersort_df
+)
+
+# Ensure sample IDs match
+immune_features$sample <- colnames(expr)
+
+saveRDS(immune_features, "data/processed/immune/immune_features_combined.rds")
+
+cat("\nTotal immune features:", ncol(immune_features) - 1, "\n")
 
 
 
