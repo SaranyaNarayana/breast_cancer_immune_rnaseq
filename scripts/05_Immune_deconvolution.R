@@ -31,26 +31,7 @@ log_message <- function(msg) {
   cat(sprintf("[%s] %s\n", timestamp, msg))
 }
 
-
-
-suppressPackageStartupMessages({
-    library(GSVA)
-    library(immunedeconv)
-    #library(ESTIMATE)
-    library(GSEABase)
-    library(dplyr)
-    library(tibble)
-    library(ggplot2)
-    library(pheatmap)
-    library(msigdbr)
-    library(dplyr)
-    library(limma)
-    library(biomaRt)
-    library(AnnotationDbi)
-    library(org.Hs.eg.db) 
-    library(tidyr)
-    library(tidyverse)
-})
+23
 
 #create output directory
 dir.create("results/figures/immune", recursive=TRUE, showWarnings = FALSE)
@@ -142,7 +123,7 @@ cat("\nTotal immune signatures:", length(all_signatures), "\n")#22
 
 saveRDS(all_signatures, "data/immune/all_signatures.rds")
 
-all_signatures <- readRDS("data/immune/all_signatures.rds")
+
 
 ## ----------------------------------------------------------------------------------------------
 ## 3. Convert Ensembl IDs in the  expr_matrix to gene symbols using AnnotationDbi and org.Hs.eg.db
@@ -672,8 +653,5 @@ saveRDS(immune_features, "data/processed/immune/immune_features_combined.rds")
 cat("\nTotal immune features:", ncol(immune_features) - 1, "\n")
 
 colnames(immune_features)[1:10]
-
-
-
 
 
