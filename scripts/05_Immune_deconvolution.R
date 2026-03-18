@@ -3,9 +3,12 @@
 # Project: Breast Cancer Immune Heterogeneity
 # Author: Saranya Narayana
 # Purpose:
-#   - 
-#   - 
-#   - 
+#   - Define Immune signatures from MSigDB and literature
+#   - Convert Ensembl IDs to gene symbols
+#   - Run gene set variation analysis (GSVA) and single sample GSEA (ssGSEA) for immune signatures
+#   - Run immune deconvolution using quanTIseq, MCP-counter, EPIC, xCell, and CIBERSORT 
+#   - Combine all resutls for further analysis and visualization in downstream scripts
+
 
 
 ############################################################
@@ -31,7 +34,7 @@ log_message <- function(msg) {
   cat(sprintf("[%s] %s\n", timestamp, msg))
 }
 
-23
+
 
 #create output directory
 dir.create("results/figures/immune", recursive=TRUE, showWarnings = FALSE)
