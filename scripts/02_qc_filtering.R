@@ -145,7 +145,7 @@ print(missing_summary)
 
 
 ##---------------------------------------------------------------------
-## 5. Remove smaples with missing critical variables 
+## 5. Remove samples with missing critical variables 
 ##(vital status, gender, age_at_diagnosis and PAM50 subtype; All 4 vairable must be present for a sample to be retained)
 ##---------------------------------------------------------------------
 cat("\nHandling missing values:\n")
@@ -314,7 +314,7 @@ clinical_filtered_3 <- replace_NA_unknown(clinical_filtered_3, "ajcc_pathologic_
 
 
 ##---------------------------------------------------------------------
-## 10. Remove uncessary variables
+## 10. Remove unnecessary variables
 ##---------------------------------------------------------------------
 clinical_filtered_4 <- clinical_filtered_3 %>%
   select(-c("pathologic_stage", "sample_type"))
@@ -346,7 +346,7 @@ table(clinical_filtered_4$age_group, useNA="always")
 summary(clinical_filtered_4)
 
 ##---------------------------------------------------------------------
-## 12. Extract the matching expression data (unstarnded and tpm_unstrand)
+## 12. Extract the matching expression data (unstranded and tpm_unstrand)
 ##---------------------------------------------------------------------
 #unstarnded
 cat("Extract expression count data:\n")
