@@ -242,9 +242,9 @@ saveRDS(expr_norm, "data/processed/expression_vst_normalized.rds")
 
 
 
-## -----------------------------------------
-## 5. Check for sample clustering using PCA
-## -----------------------------------------
+## -----------------------------------------------------------------
+## 5. Check for sample clustering using PCA:Potential batch effect
+## ----------------------------------------------------------------
 
 pca <- prcomp(t(expr_norm), scale. = TRUE, center = TRUE)
 pca_df <- data.frame(
