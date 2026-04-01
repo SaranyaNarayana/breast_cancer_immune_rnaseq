@@ -36,6 +36,24 @@ log_message <- function(msg) {
 
 
 
+suppressPackageStartupMessages({
+    library(GSVA)
+    library(immunedeconv)
+    #library(ESTIMATE)
+    library(GSEABase)
+    library(dplyr)
+    library(tibble)
+    library(ggplot2)
+    library(pheatmap)
+    library(msigdbr)
+    library(dplyr)
+    library(limma)
+    library(biomaRt)
+    library(tidyverse)
+    library(RColorBrewer)
+})
+
+
 #create output directory
 dir.create("results/figures/immune", recursive=TRUE, showWarnings = FALSE)
 dir.create("data/processed/immune", recursive=TRUE, showWarnings = FALSE)
@@ -631,10 +649,10 @@ head(cibersort_df)[,1:5]
 colnames(cibersort_df) <- paste0("CIBERSORT_", colnames(cibersort_df))
 head(cibersort_df)[,1:5]
 dim(cibersort_df) # 1013  25 (1 barcode + 22 cell types + 2 summary scores)
+
+
+
 # Combine all features
-
-
-
 immune_features <- cbind(
   gsva_df,
   ssgsea_df,
@@ -649,12 +667,98 @@ head(immune_features)[,1:5]
 
 
 # Ensure sample IDs match
-immune_features$sample <- colnames(expr)
+immune_features <- cbind(sample = colnames(expr), immune_features)
 
 saveRDS(immune_features, "data/processed/immune/immune_features_combined.rds")
 
-cat("\nTotal immune features:", ncol(immune_features) - 1, "\n")
+cat("\nTotal immune features:", ncol(immune_features), "\n")
 
-colnames(immune_features)[1:10]
+colnames(immune_features)[c(1:10,159:160)]
+
+
+
+
+# Correlation heatmap of immune features
+key_features <- c(
+  # CD8 T cells (cytotoxic)
+  "GSVA_T_cells_CD8", "ssGSEA_T_cells_CD8", "quanTIseq_T.cells.CD8",
+  "MCP_CD8 T cells", "EPIC_CD8_Tcells", "CIBERSORT_T cells CD8",
+
+  # Tregs (immunosuppressive)
+  "GSVA_T_reg", "ssGSEA_T_reg", "quanTIseq_Tregs",
+  "CIBERSORT_T cells regulatory (Tregs)", "xCell_Tregs",
+
+  # T cell exhaustion
+  "GSVA_T_exhaustion", "ssGSEA_T_exhaustion",
+
+  # B cells
+  "GSVA_B_cells", "ssGSEA_B_cells", "quanTIseq_B.cells",
+  "MCP_B lineage", "EPIC_Bcells", "CIBERSORT_B cells memory",
+
+  # Macrophages M1 vs M2
+  "GSVA_Macrophages_M1", "GSVA_Macrophages_M2",
+  "quanTIseq_Macrophages.M1", "quanTIseq_Macrophages.M2",
+  "EPIC_Macrophages", "CIBERSORT_Macrophages M1", "CIBERSORT_Macrophages M2",
+  "xCell_Macrophages M1", "xCell_Macrophages M2",
+
+  # NK cells
+  "quanTIseq_NK.cells", "MCP_NK cells", "EPIC_NKcells",
+
+  # Dendritic cells
+  "GSVA_Dendritic_cells", "ssGSEA_Dendritic_cells",
+  "quanTIseq_Dendritic.cells", "MCP_Myeloid dendritic cells",
+
+  # Inflammatory signatures
+  "GSVA_HALLMARK_INFLAMMATORY_RESPONSE", "ssGSEA_HALLMARK_INFLAMMATORY_RESPONSE",
+  "GSVA_HALLMARK_INTERFERON_GAMMA_RESPONSE", "ssGSEA_HALLMARK_INTERFERON_GAMMA_RESPONSE",
+
+  # Cytotoxicity & immunosuppression
+  "GSVA_Cytotoxicity", "ssGSEA_Cytotoxicity",
+  "GSVA_Immunosuppression", "ssGSEA_Immunosuppression",
+
+  # Stromal
+  "MCP_Endothelial cells", "MCP_Fibroblasts",
+  "EPIC_CAFs", "EPIC_Endothelial",
+  "xCell_ImmuneScore", "xCell_StromaScore", "xCell_MicroenvironmentScore"
+)
+
+
+cor_matrix <- immune_features %>%
+  dplyr::select(all_of(key_features)) %>%
+  as.matrix()
+
+dim(cor_matrix)#1013   50
+
+#Calculate spearman coorelation:CIBERSORT and quanTIseq outputs are proportions (0–1) while GSVA/ssGSEA scores are continuous enrichment scores.
+#Spearman handles this mixed scale better and is more robust to the zero-inflation common in deconvolution outputs.
+cor_result <- cor(cor_matrix, method = "spearman", use = "pairwise.complete.obs")
+
+# Shorten column names for readability
+rownames(cor_result) <- colnames(cor_result) <- gsub("GSVA_|ssGSEA_|quanTIseq_|MCP_|EPIC_|CIBERSORT_|xCell_", "", colnames(cor_result))
+
+png("results/figures/immune/immune_features_correlation.png", 
+    width = 14, height = 14, units = "in", res = 300)
+pheatmap(
+  cor_result,
+  color             = colorRampPalette(rev(brewer.pal(11, "RdBu")))(100),
+  breaks            = seq(-1, 1, length.out = 101),
+  clustering_method = "ward.D2",
+  treeheight_row    = 40,
+  treeheight_col    = 40,
+  fontsize          = 7,
+  fontsize_row      = 6,
+  fontsize_col      = 6,
+  main              = "Spearman Correlation of Immune Features",
+  border_color      = NA,
+  display_numbers   = FALSE
+)
+dev.off()
+
+
+
+
+
+
+
 
 
