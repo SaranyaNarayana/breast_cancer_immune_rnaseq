@@ -8,6 +8,7 @@
 #   - Run gene set variation analysis (GSVA) and single sample GSEA (ssGSEA) for immune signatures
 #   - Run immune deconvolution using quanTIseq, MCP-counter, EPIC, xCell, and CIBERSORT 
 #   - Combine all resutls for further analysis and visualization in downstream scripts
+#   - Created heat map with key immune features
 
 
 
@@ -678,7 +679,7 @@ colnames(immune_features)[c(1:10,159:160)]
 
 
 
-# Correlation heatmap of immune features
+# Correlation heatmap of key immune features from different methods
 key_features <- c(
   # CD8 T cells (cytotoxic)
   "GSVA_T_cells_CD8", "ssGSEA_T_cells_CD8", "quanTIseq_T.cells.CD8",
@@ -732,9 +733,7 @@ dim(cor_matrix)#1013   50
 #Calculate spearman coorelation:CIBERSORT and quanTIseq outputs are proportions (0–1) while GSVA/ssGSEA scores are continuous enrichment scores.
 #Spearman handles this mixed scale better and is more robust to the zero-inflation common in deconvolution outputs.
 cor_result <- cor(cor_matrix, method = "spearman", use = "pairwise.complete.obs")
-
-# Shorten column names for readability
-rownames(cor_result) <- colnames(cor_result) <- gsub("GSVA_|ssGSEA_|quanTIseq_|MCP_|EPIC_|CIBERSORT_|xCell_", "", colnames(cor_result))
+dim(cor_result)#50 50             
 
 png("results/figures/immune/immune_features_correlation.png", 
     width = 14, height = 14, units = "in", res = 300)
