@@ -81,12 +81,13 @@ head(data_full[, 155:170])
 
 cat("dimension of data full:", dim(data_full), "\n")#1013 178
 
+cat("PAM50 Subtype distribution before QC filtering:\n")
 table(data_full$PAM50_Subtype)
 
 
-## -----------------------------
-## 2. CIBERSORT  QC filtering
-## -----------------------------
+## ---------------------------------------------------------------------------
+## 2. CIBERSORT  QC filtering and used for validation of immune-based clusters
+## ---------------------------------------------------------------------------
 cat("Performing CIBERSORT QC filtering...\n")
 
 # Visualize CIBERSORT QC metrics
@@ -116,21 +117,31 @@ p_qc <- plot_grid(p_pval, p_cor, p_rmse, ncol = 3)
 ggsave("results/figures/clustering/CIBERSORT_QC_metrics.png",
        p_qc, width = 15, height = 5)
 
-  data_full %>%
+  
+
+# Extract CIBERSORT data seperately 
+
+cibersort_col <- grep("^CIBERSORT_", colnames(data_full), value=TRUE)
+
+cibersort_immune_estimates <- data_full %>%
+    select(sample, all_of(cibersort_col))
+cat("Dimension of cibersort_immune_estimates:", dim(cibersort_immune_estimates), "\n")
+
+
+# Apply QC filter and extract validation dataset for downstream analysis
+cibersort_immune_estimates %>%
     select(`CIBERSORT_P-value`, `CIBERSORT_RMSE`,  `CIBERSORT_Correlation`) %>%
     summary()
 
 
-# Apply QC filter
-data_full_2 <- data_full %>%
+cibersort_valid <- cibersort_immune_estimates %>%
   filter(`CIBERSORT_P-value` < 0.05,
          `CIBERSORT_Correlation` > 0,
          `CIBERSORT_RMSE` < quantile(`CIBERSORT_RMSE`, 0.95, na.rm = TRUE))
-cat("After CIBERSORT QC filtering, retained", dim(data_full_2),"\n")
+cat("After CIBERSORT QC filtering, retained", dim(cibersort_valid),"\n") # 670 26 
 
-cat("PAM50 Subtype distribution before QC filtering:\n")
-table(data_full$PAM50_Subtype)
+saveRDS(cibersort_valid, "data/processed/clustering/cibersort_valid.rds")
 
-cat("PAM50 Subtype distribution after QC filtering:\n")
-table(data_full_2$PAM50_Subtype)
+# cat("PAM50 Subtype distribution after QC filtering:\n")
+# table(cibersort_immune_estimates_2$PAM50_Subtype)
 
