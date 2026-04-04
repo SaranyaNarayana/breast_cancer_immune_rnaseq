@@ -1,0 +1,4 @@
+"score_type","mean","sd","median","min","max"
+"ImmuneScore",0.0815,0.1147,0.0428,0,1.4077
+"MicroenvironmentScore",0.1485,0.1379,0.104,0.0042,1.5042
+"StromaScore",0.067,0.0691,0.0416,0,0.4454
