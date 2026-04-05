@@ -42,13 +42,12 @@ suppressPackageStartupMessages({
   library(factoextra)
   library(umap)
   library(dplyr)
+  library(tidyverse)
   library(ggplot2)
   library(pheatmap)
   library(RColorBrewer)
   library(cowplot)
 })
-
-
 
 
 
@@ -81,7 +80,7 @@ head(data_full[, 155:170])
 
 cat("dimension of data full:", dim(data_full), "\n")#1013 178
 
-cat("PAM50 Subtype distribution before QC filtering:\n")
+cat("PAM50 Subtype distribution:\n")
 table(data_full$PAM50_Subtype)
 
 
@@ -142,6 +141,78 @@ cat("After CIBERSORT QC filtering, retained", dim(cibersort_valid),"\n") # 670 2
 
 saveRDS(cibersort_valid, "data/processed/clustering/cibersort_valid.rds")
 
-# cat("PAM50 Subtype distribution after QC filtering:\n")
-# table(cibersort_immune_estimates_2$PAM50_Subtype)
 
+## ---------------------------------------------------------------------------
+## 3. Feature selection for clustering analysis 
+## Using: GSVA, ssGSEA, quanTIseq, MCP, EPIC, Xcell only for clustering analysis
+## ---------------------------------------------------------------------------
+
+immune_features_for_clustering <- data_full %>%
+  select(sample, starts_with("GSVA_"), starts_with("ssGSEA_"),
+         starts_with("quanTIseq_"), starts_with("MCP_"),
+         starts_with("EPIC_"), starts_with("xCell_"))
+cat("Dimension of immune features for clustering:", dim(immune_features_for_clustering), "\n")#1013 125 
+
+#Building a matrix for clustering analysis
+clustering_matrix <- immune_features_for_clustering %>%
+  column_to_rownames(var = "sample") %>%
+  as.matrix()
+head(clustering_matrix[, 1:10])
+
+# Calculate variance for each feature and select top 100 high-variance features
+
+feature_variance <- apply(clustering_matrix, 2, var, na.rm = TRUE)
+head(feature_variance)
+
+high_var_features <- names(sort(feature_variance, decreasing = TRUE)[1:100])
+
+clustering_features <- high_var_features
+
+# count per method
+cat("Feature breakdown:\n")
+table(gsub("_.*", "", clustering_features)) 
+
+## ---------------------------------------------------------------------------
+## 4. Funtion for consensus clustering analysis 
+## ---------------------------------------------------------------------------
+
+run_consensus_clustering <- function(data, subtype_name, features, output_dir) {
+
+  cat("\n=== Processing", subtype_name, "===\n")
+
+  subtype_data <- data %>% filter(clinical_subtype == subtype_name)
+
+  if (nrow(subtype_data) < 20) {
+    cat("Warning: Too few samples (", nrow(subtype_data), ") for", subtype_name, "\n")
+    return(NULL)
+  }
+
+  cat("Samples:", nrow(subtype_data), "\n")
+
+  mat <- as.matrix(subtype_data[, features])
+  rownames(mat) <- subtype_data$sample
+  mat <- mat[, apply(mat, 2, function(x) var(x, na.rm = TRUE) > 0)]
+  mat_scaled <- t(scale(t(mat)))
+
+  results_dir <- file.path(output_dir, subtype_name)
+  dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
+
+  cc_results <- ConsensusClusterPlus(
+    d         = mat_scaled,
+    maxK      = 6,
+    reps      = 1000,
+    pItem     = 0.8,
+    pFeature  = 0.8,
+    clusterAlg = "hc",
+    distance  = "euclidean",
+    title     = results_dir,
+    plot      = "png",
+    verbose   = TRUE
+  )
+
+  return(list(
+    consensus = cc_results,
+    data      = subtype_data,
+    matrix    = mat_scaled
+  ))
+}
