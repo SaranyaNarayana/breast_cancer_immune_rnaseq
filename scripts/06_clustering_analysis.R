@@ -147,6 +147,11 @@ saveRDS(cibersort_valid, "data/processed/clustering/cibersort_valid.rds")
 ## Using: GSVA, ssGSEA, quanTIseq, MCP, EPIC, Xcell only for clustering analysis
 ## ---------------------------------------------------------------------------
 
+#Remove ALL CIBERSORT columns from main data
+data_main <- data_full %>%
+  select(-starts_with("CIBERSORT_"))
+cat("Dimension of data main after removing CIBERSORT columns:", dim(data_main), "\n")#1013 153
+
 immune_features_for_clustering <- data_full %>%
   select(sample, starts_with("GSVA_"), starts_with("ssGSEA_"),
          starts_with("quanTIseq_"), starts_with("MCP_"),
@@ -180,7 +185,7 @@ run_consensus_clustering <- function(data, subtype_name, features, output_dir) {
 
   cat("\n=== Processing", subtype_name, "===\n")
 
-  subtype_data <- data %>% filter(clinical_subtype == subtype_name)
+  subtype_data <- data %>% filter(PAM50_Subtype == subtype_name)
 
   if (nrow(subtype_data) < 20) {
     cat("Warning: Too few samples (", nrow(subtype_data), ") for", subtype_name, "\n")
@@ -216,3 +221,22 @@ run_consensus_clustering <- function(data, subtype_name, features, output_dir) {
     matrix    = mat_scaled
   ))
 }
+
+## ---------------------------------------------------------------------------
+## 5. Run clustering per PAM50 subtype 
+## ---------------------------------------------------------------------------
+
+subtypes          <- c( "Basal",   "Her2", "LumA", "LumB", "Normal")
+clustering_results <- list()
+
+for (subtype in subtypes) {
+  clustering_results[[subtype]] <- run_consensus_clustering(
+    data         = data_main,
+    subtype_name = subtype,
+    features     = clustering_features,
+    output_dir   = "results/consensus_clustering"
+  )
+}
+
+saveRDS(clustering_results,
+        "data/processed/clustering/consensus_clustering_results.rds")
