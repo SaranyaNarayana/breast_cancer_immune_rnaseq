@@ -240,3 +240,56 @@ for (subtype in subtypes) {
 
 saveRDS(clustering_results,
         "data/processed/clustering/consensus_clustering_results.rds")
+
+
+## ---------------------------------------------------------------------------
+## 5. Determine the optimal K for each subtype based on consensus clustering results
+## ---------------------------------------------------------------------------
+
+determine_optimal_k <- function(cc_result, subtype_name) {
+
+  k_range <- 2:6
+  metrics <- data.frame(k = k_range, silhouette = NA)
+
+  mat <- cc_result$matrix
+
+  for (k in k_range) {
+    clusters <- cc_result$consensus[[k]]$consensusClass
+    if (length(unique(clusters)) > 1) {
+      sil <- silhouette(clusters, dist(mat))
+      metrics$silhouette[metrics$k == k] <- mean(sil[, 3])
+    }
+  }
+
+  # Plot silhouette
+  p <- ggplot(metrics, aes(x = k, y = silhouette)) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 3) +
+    geom_vline(xintercept = metrics$k[which.max(metrics$silhouette)],
+               color = "red", linetype = "dashed") +
+    labs(title = paste(subtype_name, "— Optimal K"),
+         x = "Number of Clusters (k)",
+         y = "Average Silhouette Width") +
+    theme_bw() +
+    scale_x_continuous(breaks = 2:6)
+
+  ggsave(paste0("results/figures/clustering/optimal_k_", subtype_name, ".png"),
+         p, width = 6, height = 4)
+
+  optimal_k <- metrics$k[which.max(metrics$silhouette)]
+  cat(subtype_name, "— Recommended k:", optimal_k, "\n")
+
+  return(list(metrics = metrics, optimal_k = optimal_k))
+}
+
+optimal_k_results <- list()
+for (subtype in subtypes) {
+  if (!is.null(clustering_results[[subtype]])) {
+    optimal_k_results[[subtype]] <- determine_optimal_k(
+      clustering_results[[subtype]], subtype
+    )
+  }
+}
+
+saveRDS(optimal_k_results,
+        "data/processed/clustering/optimal_k_results.rds")
