@@ -238,10 +238,11 @@ for (subtype in subtypes) {
   )
 }
 
-saveRDS(clustering_results,
-        "data/processed/clustering/consensus_clustering_results.rds")
+saveRDS(clustering_results,"data/processed/clustering/consensus_clustering_results.rds")
 
-
+clustering_results <-readRDS("data/processed/clustering/consensus_clustering_results.rds")
+dim(clustering_results) # 5 1
+head(clustering_results)
 ## ---------------------------------------------------------------------------
 ## 5. Determine the optimal K for each subtype based on consensus clustering results
 ## ---------------------------------------------------------------------------
