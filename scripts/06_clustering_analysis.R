@@ -40,25 +40,30 @@ log_message <- function(msg) {
 
 
 suppressPackageStartupMessages({
-library(ConsensusClusterPlus)  # consensus clustering
-library(cluster)               # silhouette scores
-library(factoextra)            # PCA visualization
-library(umap)                  # UMAP dimensionality reduction
-library(dplyr)                 # data manipulation
-library(ggplot2)               # plotting
-library(pheatmap)              # heatmaps
-library(RColorBrewer)          # color palettes
-library(cowplot)               # combine plots
-library(tidyr)                 # data reshaping
-library(ggpubr)                # stat comparisons on plots
+  library(ConsensusClusterPlus)
+  library(cluster)
+  library(factoextra)
+  library(umap)
+  library(dplyr)
+  library(ggplot2)
+  library(tidyr)
+  library(pheatmap)
+  library(RColorBrewer)
+  library(cowplot)
+  library(ggpubr)
+  library(tibble)
+  library(scales)
+  library(ggrepel)
 })
 
 
 # Create output directories
-dir.create("results/figures/clustering",        recursive = TRUE, showWarnings = FALSE)
-dir.create("results/consensus_clustering_pca",  recursive = TRUE, showWarnings = FALSE)
-dir.create("results/tables/clustering",                    recursive = TRUE, showWarnings = FALSE)
-dir.create("data/processed/clustering",         recursive = TRUE, showWarnings = FALSE)
+dir.create("results/figures/clustering",       recursive = TRUE, showWarnings = FALSE)
+dir.create("results/figures/clustering/pca",   recursive = TRUE, showWarnings = FALSE)
+dir.create("results/figures/clustering/umap",  recursive = TRUE, showWarnings = FALSE)
+dir.create("results/consensus_clustering",     recursive = TRUE, showWarnings = FALSE)
+dir.create("results/tables/clustering",        recursive = TRUE, showWarnings = FALSE)
+dir.create("data/processed/clustering",        recursive = TRUE, showWarnings = FALSE)
 
 #===============================================================================
 # 1. LOAD DATA
@@ -119,106 +124,20 @@ saveRDS(cibersort_valid, "data/processed/clustering/cibersort_valid.rds")
 
 
 ## ---------------------------------------------------------------------------
-## 3. Define immune groups
+# 3. Remove ALL CIBERSORT columns from main data
 ## ---------------------------------------------------------------------------
-
-#Remove ALL CIBERSORT columns from main data
 data_main <- data_full %>%
   select(-starts_with("CIBERSORT_"))
 cat("Dimension of data main after removing CIBERSORT columns:", dim(data_main), "\n")#1013 153
 
+        
 
-log_message("Defining immune component groups")
-immune_component_groups <- list(
+## ---------------------------------------------------------------------------
+## 4. Define clustering columns (immune features only, no clinical metadata)
+## ---------------------------------------------------------------------------
 
-  # CD8 cytotoxic T cells + killing capacity
-  # WHY: Core anti-tumor immune effectors
-  #      Best predictor of immunotherapy response
-  Cytotoxic = c(
-    "GSVA_T_cells_CD8", "GSVA_Cytotoxicity",
-    "ssGSEA_T_cells_CD8", "ssGSEA_Cytotoxicity",
-    "quanTIseq_T.cells.CD8", "MCP_CD8 T cells", "EPIC_CD8_Tcells"
-  ),
-
-  # IFN signaling + NF-kB + TNF pathways
-  # WHY: Broad inflammatory activation
-  #      Includes your Hallmark MSigDB signatures from Script 05
-  Inflammatory = c(
-    "GSVA_HALLMARK_INFLAMMATORY_RESPONSE",
-    "GSVA_HALLMARK_INTERFERON_GAMMA_RESPONSE",
-    "GSVA_HALLMARK_INTERFERON_ALPHA_RESPONSE",
-    "GSVA_HALLMARK_TNFA_SIGNALING_VIA_NFKB",
-    "ssGSEA_HALLMARK_INFLAMMATORY_RESPONSE",
-    "ssGSEA_HALLMARK_INTERFERON_GAMMA_RESPONSE",
-    "ssGSEA_HALLMARK_INTERFERON_ALPHA_RESPONSE",
-    "ssGSEA_HALLMARK_TNFA_SIGNALING_VIA_NFKB"
-  ),
-
-  # Tregs + exhausted T cells + immunosuppressive pathways
-  # WHY: Counter-regulatory mechanisms that shut down anti-tumor immunity
-  #      High suppression = tumor is evading immune attack
-  Suppression = c(
-    "GSVA_T_reg", "GSVA_T_exhaustion", "GSVA_Immunosuppression",
-    "ssGSEA_T_reg", "ssGSEA_T_exhaustion", "ssGSEA_Immunosuppression",
-    "quanTIseq_Tregs"
-  ),
-
-  # M1 (classically activated, pro-inflammatory) macrophages
-  # WHY: Anti-tumor macrophage phenotype
-  #      Separate from M2 because they have OPPOSITE effects on survival
-  Macrophage_M1 = c(
-    "GSVA_Macrophages_M1", "ssGSEA_Macrophages_M1",
-    "quanTIseq_Macrophages.M1"
-  ),
-
-  # M2 (alternatively activated, immunosuppressive) macrophages
-  # WHY: Pro-tumor macrophage phenotype — promotes metastasis
-  #      Kept separate from M1 — they are biologically opposite
-  Macrophage_M2 = c(
-    "GSVA_Macrophages_M2", "ssGSEA_Macrophages_M2",
-    "quanTIseq_Macrophages.M2", "EPIC_Macrophages"
-  ),
-
-  # B cells and humoral immunity
-  # WHY: B cells form tertiary lymphoid structures in some breast cancers
-  #      Associated with good prognosis in TNBC
-  B_cells = c(
-    "GSVA_B_cells", "ssGSEA_B_cells", "quanTIseq_B.cells",
-    "MCP_B lineage", "EPIC_Bcells"
-  ),
-
-  # Natural killer cells — innate cytotoxic lymphocytes
-  # WHY: Innate immune surveillance — independent of antigen presentation
-  NK_cells = c(
-    "quanTIseq_NK.cells", "MCP_NK cells", "EPIC_NKcells"
-  ),
-
-  # Dendritic cells — antigen presenting cells
-  # WHY: Required to prime T cells — gateway between innate and adaptive immunity
-  Dendritic = c(
-    "GSVA_Dendritic_cells", "ssGSEA_Dendritic_cells",
-    "quanTIseq_Dendritic.cells", "MCP_Myeloid dendritic cells"
-  ),
-
-  # CAFs + endothelial — structural tumor microenvironment
-  # WHY: Stromal cells physically exclude immune cells
-  #      High stromal content = immune-excluded phenotype
-  #      Independent from immune activation/suppression axis
-  Stromal = c(
-    "MCP_Fibroblasts", "MCP_Endothelial cells",
-    "EPIC_CAFs", "EPIC_Endothelial"
-  )
+clustering_feature_cols <- grep(
+  "^(GSVA_|ssGSEA_|quanTIseq_|MCP_|EPIC_|xCell_)",
+  colnames(data_main), value = TRUE
 )
-
-# Keep only features present in your data
-immune_component_groups <- lapply(immune_component_groups, function(feats) {
-  feats[feats %in% colnames(data_main)]
-})
-immune_component_groups <- immune_component_groups[
-  sapply(immune_component_groups, length) > 0
-]
-
-log_message("Immune component groups:")
-for (g in names(immune_component_groups)) {
-  log_message(sprintf("  %-20s: %d features", g, length(immune_component_groups[[g]])))
-}
+cat("Number of immune features used for clustering:", length(clustering_feature_cols), "\n")# 134
