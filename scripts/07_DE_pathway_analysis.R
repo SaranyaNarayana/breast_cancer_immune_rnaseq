@@ -398,57 +398,133 @@ for (subtype in subtypes) {
 log_message("=== SECTION 4: VOLCANO PLOTS ===")
 
 plot_volcano <- function(res_df, subtype, label,
-                          lfc_cut=1.0, padj_cut=0.05, n_label=15) {
+                          lfc_cut   = 1.0,
+                          padj_cut  = 0.05,
+                          n_label   = 10) {   # n_label per direction (UP and DOWN)
 
-  if (is.null(res_df) || nrow(res_df)==0) return(NULL)
+  if (is.null(res_df) || nrow(res_df) == 0) return(NULL)
 
   plot_df <- res_df %>%
     mutate(log10_padj = -log10(padj + 1e-300))
 
-  top_genes <- plot_df %>% filter(significant) %>%
-    arrange(padj) %>% head(n_label)
+  # ── Select top N genes from UP and DOWN SEPARATELY ──────────────────────
+  # Guarantees both directions are always annotated regardless of
+  # the relative significance levels between UP and DOWN genes.
+  top_up <- plot_df %>%
+    filter(direction == "UP") %>%
+    arrange(padj) %>%
+    head(n_label)
 
-  n_up   <- sum(plot_df$direction=="UP")
-  n_down <- sum(plot_df$direction=="DOWN")
+  top_down <- plot_df %>%
+    filter(direction == "DOWN") %>%
+    arrange(padj) %>%
+    head(n_label)
 
-  p <- ggplot(plot_df, aes(x=log2FoldChange, y=log10_padj,
-                            color=direction)) +
-    geom_point(alpha=0.5, size=1.2) +
-    geom_vline(xintercept=c(-lfc_cut, lfc_cut),
-               linetype="dashed", color="gray40", linewidth=0.6) +
-    geom_hline(yintercept=-log10(padj_cut),
-               linetype="dashed", color="gray40", linewidth=0.6) +
-    geom_text_repel(data=top_genes, aes(label=gene),
-                    size=2.8, max.overlaps=20, fontface="italic") +
-    annotate("text", x=max(plot_df$log2FoldChange)*0.7,
-             y=max(plot_df$log10_padj)*0.95,
-             label=paste0(n_up," UP"), color="#E41A1C", fontface="bold", size=4) +
-    annotate("text", x=min(plot_df$log2FoldChange)*0.7,
-             y=max(plot_df$log10_padj)*0.95,
-             label=paste0(n_down," DOWN"), color="#377EB8", fontface="bold", size=4) +
-    scale_color_manual(values=c("UP"="#E41A1C","DOWN"="#377EB8","NS"="gray75"),
-                       name=NULL) +
+  n_up   <- sum(plot_df$direction == "UP")
+  n_down <- sum(plot_df$direction == "DOWN")
+
+  y_max <- max(plot_df$log10_padj,    na.rm = TRUE)
+  x_max <- max(plot_df$log2FoldChange, na.rm = TRUE)
+  x_min <- min(plot_df$log2FoldChange, na.rm = TRUE)
+
+  p <- ggplot(plot_df,
+              aes(x = log2FoldChange, y = log10_padj,
+                  color = direction)) +
+
+    # ── All points ───────────────────────────────────────────────────────
+    geom_point(alpha = 0.5, size = 1.2) +
+
+    # ── Threshold lines ──────────────────────────────────────────────────
+    geom_vline(xintercept = c(-lfc_cut, lfc_cut),
+               linetype = "dashed", color = "gray40", linewidth = 0.6) +
+    geom_hline(yintercept = -log10(padj_cut),
+               linetype = "dashed", color = "gray40", linewidth = 0.6) +
+
+    # ── UP gene labels — pushed rightward, dark red text ─────────────────
+    geom_text_repel(
+      data          = top_up,
+      aes(label     = gene),
+      color         = "#C0392B",
+      size          = 2.8,
+      fontface      = "italic",
+      nudge_x       = 0.4,       # push labels to the right
+      direction     = "y",       # repel only vertically
+      hjust         = 0,         # text left-anchored (extends rightward)
+      segment.size  = 0.3,
+      segment.color = "gray60",
+      max.overlaps  = 30,
+      box.padding   = 0.3
+    ) +
+
+    # ── DOWN gene labels — pushed leftward, dark blue text ───────────────
+    geom_text_repel(
+      data          = top_down,
+      aes(label     = gene),
+      color         = "#1A5276",
+      size          = 2.8,
+      fontface      = "italic",
+      nudge_x       = -0.4,      # push labels to the left
+      direction     = "y",       # repel only vertically
+      hjust         = 1,         # text right-anchored (extends leftward)
+      segment.size  = 0.3,
+      segment.color = "gray60",
+      max.overlaps  = 30,
+      box.padding   = 0.3
+    ) +
+
+    # ── DEG count annotations ────────────────────────────────────────────
+    annotate("text",
+             x     = x_max * 0.65,
+             y     = y_max * 0.97,
+             label = paste0(n_up, " UP"),
+             color = "#C0392B", fontface = "bold", size = 4.5) +
+
+    annotate("text",
+             x     = x_min * 0.65,
+             y     = y_max * 0.97,
+             label = paste0(n_down, " DOWN"),
+             color = "#1A5276", fontface = "bold", size = 4.5) +
+
+    # ── Colours ──────────────────────────────────────────────────────────
+    scale_color_manual(
+      values = c("UP" = "#E41A1C", "DOWN" = "#377EB8", "NS" = "gray75"),
+      name   = NULL
+    ) +
+
     labs(
       title    = paste(subtype, "— Volcano Plot"),
-      subtitle = paste0(label, "\n|log2FC|>", lfc_cut, "  padj<", padj_cut),
-      x="log2 Fold Change", y="-log10(adjusted p-value)"
-    ) + theme_bw() +
-    theme(legend.position="bottom",
-          plot.subtitle=element_text(size=8, color="gray40"))
+      subtitle = paste0(
+        label, "\n",
+        "|log2FC| > ", lfc_cut, "  |  padj < ", padj_cut, "\n",
+        "Top ", n_label, " UP (red) and ", n_label,
+        " DOWN (blue) genes labelled"
+      ),
+      x = "log2 Fold Change",
+      y = "-log10(adjusted p-value)"
+    ) +
+    theme_bw() +
+    theme(
+      legend.position = "bottom",
+      plot.subtitle   = element_text(size = 8, color = "gray40")
+    )
 
-  ggsave(paste0("results/figures/DE/volcano_", subtype, "_", label, ".png"),
-         p, width=9, height=7, dpi=300)
+  ggsave(
+    paste0("results/figures/DE/2_volcano_", subtype, "_", label, ".png"),
+    p, width = 10, height = 7, dpi = 300
+  )
+
   return(p)
 }
 
+# ── Run for all subtypes ─────────────────────────────────────────────────────
 for (subtype in subtypes) {
   if (!is.null(de_results[[subtype]]))
-    plot_volcano(de_results[[subtype]]$res, subtype,
-                 comparison_list[[subtype]]$label)
+    plot_volcano(
+      res_df  = de_results[[subtype]]$res,
+      subtype = subtype,
+      label   = comparison_list[[subtype]]$label
+    )
 }
-
-
-
 
 ################################################################################
 # SECTION 5: MA PLOTS
@@ -486,5 +562,194 @@ for (subtype in subtypes)
             comparison_list[[subtype]]$label)
 
 
+################################################################################
+# SECTION 6: fgsea PATHWAY ENRICHMENT
+#
+# WHY fgsea OVER ORA (over-representation analysis):
+#   ORA uses only significant DEGs → loses genes just below threshold
+#   fgsea uses the FULL ranked gene list → no information lost
+#
+# RANKING STATISTIC:
+#   stat = sign(log2FC) × -log10(padj)
+#   Combines direction AND significance — genes extreme on both get top rank
+#
+# GENE SETS:
+#   MSigDB Hallmark (50 pathways) — well-curated, minimal overlap
+#   Reactome immune pathways     — detailed immune-specific sets
+################################################################################
+log_message("=== SECTION 6: FGSEA PATHWAY ENRICHMENT ===")
+ 
+log_message("Loading MSigDB gene sets...")
+ 
+# ── Hallmark gene sets (50 well-curated biological pathways) ─────────────────
+# Use collection= instead of category= (msigdbr >= 10.0.0)
+# Use dplyr::select() explicitly to avoid AnnotationDbi::select() conflict
+hallmark_raw <- msigdbr(species = "Homo sapiens", collection = "H")
+ 
+hallmark_sets <- hallmark_raw %>%
+  dplyr::select(gs_name, gene_symbol) %>%
+  split(x = .$gene_symbol, f = .$gs_name)
+ 
+cat("Hallmark gene sets loaded:", length(hallmark_sets), "\n")
+ 
+# ── Reactome immune pathways (C2 canonical pathways) ────────────────────────
+# subcollection= replaces subcategory= in msigdbr >= 10.0.0
+reactome_raw <- msigdbr(
+  species       = "Homo sapiens",
+  collection    = "C2",
+  subcollection = "CP:REACTOME"
+)
+ 
+reactome_sets <- reactome_raw %>%
+  dplyr::select(gs_name, gene_symbol) %>%
+  split(x = .$gene_symbol, f = .$gs_name)
+ 
+# Subset to immune-relevant pathways to reduce multiple testing burden
+immune_kw <- c("IMMUNE","INTERFERON","CYTOKINE","T_CELL","B_CELL",
+                "NK_CELL","MACROPHAGE","INFLAMM","ADAPTIVE","INNATE",
+                "LYMPHOCYTE","ANTIGEN","COMPLEMENT","CHECKPOINT","MHC",
+                "INTERLEUKIN","SIGNALING")
+ 
+reactome_immune <- reactome_sets[
+  grepl(paste(immune_kw, collapse = "|"),
+        names(reactome_sets), ignore.case = TRUE)
+]
+ 
+cat("Reactome total sets:", length(reactome_sets), "\n")
+cat("Reactome immune sets:", length(reactome_immune), "\n\n")
+ 
+run_fgsea <- function(res_df, gene_sets, subtype, label,
+                       set_name="Hallmark", n_perm=10000) {
+ 
+  if (is.null(res_df) || nrow(res_df) < 100) {
+    cat("  Insufficient genes — skipping fgsea\n"); return(NULL)
+  }
+  cat("\n--- fgsea:", subtype, "|", set_name, "---\n")
+ 
+  ranks <- res_df %>%
+    filter(!is.na(log2FoldChange), !is.na(padj), padj > 0) %>%
+    mutate(stat = sign(log2FoldChange) * -log10(padj + 1e-300)) %>%
+    group_by(gene) %>%
+    slice_max(abs(stat), n=1, with_ties=FALSE) %>%
+    ungroup()
+ 
+  rank_vec <- setNames(ranks$stat, ranks$gene)
+  cat("  Ranked genes:", length(rank_vec), "\n")
+ 
+  set.seed(42)
+  fgsea_res <- fgsea(
+    pathways    = gene_sets,
+    stats       = rank_vec,
+    minSize     = 10,
+    maxSize     = 500,
+    nPermSimple = n_perm
+  )
+ 
+  fgsea_clean <- fgsea_res %>%
+    as.data.frame() %>%
+    mutate(
+      subtype       = subtype,
+      comparison    = label,
+      gene_set      = set_name,
+      direction     = ifelse(NES>0, "Enriched in High/IC2", "Enriched in Low/IC1"),
+      significant   = padj < 0.05,
+      pathway_clean = gsub("HALLMARK_|REACTOME_","",pathway) %>%
+                       gsub("_"," ",.)
+    ) %>%
+    arrange(padj, desc(abs(NES)))
+ 
+  cat(sprintf("  Significant pathways: %d\n", sum(fgsea_clean$significant, na.rm=TRUE)))
+ 
+  write.csv(fgsea_clean,
+    paste0("results/tables/DE/pathway/fgsea_", set_name, "_",
+           subtype, "_", label, ".csv"),
+    row.names=FALSE)
+ 
+  return(fgsea_clean)
+}
+ 
+pathway_results <- list()
+for (subtype in subtypes) {
+  if (!is.null(de_results[[subtype]])) {
+    res_df <- de_results[[subtype]]$res
+    label  <- comparison_list[[subtype]]$label
+    pathway_results[[paste0(subtype,"_Hallmark")]] <-
+      run_fgsea(res_df, hallmark_sets, subtype, label, "Hallmark")
+    pathway_results[[paste0(subtype,"_Reactome")]] <-
+      run_fgsea(res_df, reactome_immune, subtype, label, "ReactomeImmune")
+  }
+}
+ 
+
+saveRDS(pathway_results, "data/processed/DE/pathway/pathway_results_all.rds")
 
 
+################################################################################
+# SECTION 7: PATHWAY BUBBLE PLOTS
+#
+# X = NES (normalised enrichment score)
+#   NES > 0 = pathway enriched in immune-active group (High/IC2)
+#   NES < 0 = pathway enriched in immune-cold group (Low/IC1)
+# Y = pathway name (ordered by NES)
+# Size = number of leading-edge genes (genes driving enrichment)
+# Color = significance (-log10 padj)
+################################################################################
+ 
+log_message("=== SECTION 7: PATHWAY BUBBLE PLOTS ===")
+ 
+plot_pathway_bubble <- function(fgsea_df, subtype, set_name, n_top=20) {
+ 
+  if (is.null(fgsea_df) || nrow(fgsea_df)==0) return(NULL)
+ 
+  top_df <- bind_rows(
+    fgsea_df %>% filter(significant, NES>0) %>% arrange(padj) %>% head(n_top%/%2),
+    fgsea_df %>% filter(significant, NES<0) %>% arrange(padj) %>% head(n_top%/%2)
+  )
+  if (nrow(top_df)==0) { cat("  No significant pathways\n"); return(NULL) }
+ 
+  top_df <- top_df %>%
+    mutate(
+      pathway_clean = factor(pathway_clean, levels = pathway_clean[order(NES)]),
+      log10_padj    = -log10(padj),
+      # leadingEdge is a comma-separated string after run_fgsea fix
+      # use n_leading column already computed, or recompute from string
+      n_leading     = if ("n_leading" %in% colnames(top_df)) {
+        n_leading
+      } else {
+        sapply(strsplit(as.character(leadingEdge), ","), length)
+      }
+    )
+ 
+  p <- ggplot(top_df, aes(x=NES, y=pathway_clean,
+                           size=n_leading, color=log10_padj)) +
+    geom_point(alpha=0.85) +
+    geom_vline(xintercept=0, linewidth=0.8) +
+    annotate("rect", xmin=0, xmax=Inf, ymin=-Inf, ymax=Inf,
+             fill="#FFE4E4", alpha=0.25) +
+    annotate("rect", xmin=-Inf, xmax=0, ymin=-Inf, ymax=Inf,
+             fill="#E4F0FF", alpha=0.25) +
+    scale_color_gradient(low="gold", high="darkred", name="-log10(padj)") +
+    scale_size_continuous(name="Leading edge genes", range=c(3,12)) +
+    labs(
+      title    = paste(subtype, "—", set_name, "Pathway Enrichment"),
+      subtitle = paste0("NES>0 = enriched in High/IC2  |  NES<0 = enriched in Low/IC1\n",
+                        "Size = leading edge genes  |  Color = significance"),
+      x = "Normalised Enrichment Score (NES)", y = NULL
+    ) +
+    theme_bw() +
+    theme(axis.text.y=element_text(size=8),
+          plot.subtitle=element_text(size=8, color="gray40"))
+ 
+  ggsave(paste0("results/figures/DE/pathway/bubble_", set_name, "_", subtype, ".png"),
+         p, width=13, height=max(7, nrow(top_df)*0.45), dpi=300)
+  return(p)
+}
+ 
+for (subtype in subtypes) {
+  h_key <- paste0(subtype,"_Hallmark")
+  r_key <- paste0(subtype,"_Reactome")
+  if (!is.null(pathway_results[[h_key]]))
+    plot_pathway_bubble(pathway_results[[h_key]], subtype, "Hallmark")
+  if (!is.null(pathway_results[[r_key]]))
+    plot_pathway_bubble(pathway_results[[r_key]], subtype, "ReactomeImmune")
+}
