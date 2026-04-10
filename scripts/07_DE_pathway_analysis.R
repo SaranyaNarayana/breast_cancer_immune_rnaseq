@@ -360,6 +360,32 @@ for (subtype in subtypes) {
 
 saveRDS(de_results, "data/processed/DE/de_results_all.rds")
 
+##------------------------------------------------------------------##
+#Quality Check
+# Run this to verify the direction is correct
+# UP should contain immune genes, DOWN should contain tumour/stromal genes
+##------------------------------------------------------------------##
+for (subtype in subtypes) {
+  res <- de_results[[subtype]]$res
+
+  cat("\n===", subtype, "===\n")
+
+  # Top 10 UP genes
+  cat("Top 10 UP (higher in immune-active):\n")
+  print(res %>% filter(direction=="UP") %>%
+          head(10) %>% dplyr::select(gene, log2FoldChange, padj))
+
+  # Top 10 DOWN genes
+  cat("Top 10 DOWN (higher in immune-cold):\n")
+  print(res %>% filter(direction=="DOWN") %>%
+          head(10) %>% dplyr::select(gene, log2FoldChange, padj))
+}
+
+
+
+
+
+
 
 ################################################################################
 # SECTION 4: VOLCANO PLOTS
@@ -424,6 +450,40 @@ for (subtype in subtypes) {
 
 
 
+################################################################################
+# SECTION 5: MA PLOTS
+#
+# X = log10(baseMean) — average expression
+# Y = log2FC — fold change
+# Checks: is DE biased toward low/high expressed genes?
+# LFC shrinkage should narrow the "funnel" at low expression
+################################################################################
+
+log_message("=== SECTION 5: MA PLOTS ===")
+
+plot_ma <- function(res_df, subtype, label) {
+  if (is.null(res_df) || nrow(res_df)==0) return(NULL)
+
+  plot_df <- res_df %>% mutate(log_bm = log10(baseMean+1))
+
+  ggplot(plot_df, aes(x=log_bm, y=log2FoldChange, color=direction)) +
+    geom_point(alpha=0.4, size=1) +
+    geom_hline(yintercept=0, linewidth=0.8) +
+    geom_hline(yintercept=c(-1,1), linetype="dashed", color="gray50") +
+    scale_color_manual(values=c("UP"="#E41A1C","DOWN"="#377EB8","NS"="gray75"),
+                       name=NULL) +
+    labs(title=paste(subtype,"— MA Plot (apeglm LFC shrinkage)"),
+         subtitle=label, x="log10(baseMean)", y="log2FC") +
+    theme_bw()
+
+  ggsave(paste0("results/figures/DE/MA_", subtype, "_", label, ".png"),
+         last_plot(), width=8, height=6, dpi=300)
+}
+
+for (subtype in subtypes)
+  if (!is.null(de_results[[subtype]]))
+    plot_ma(de_results[[subtype]]$res, subtype,
+            comparison_list[[subtype]]$label)
 
 
 
