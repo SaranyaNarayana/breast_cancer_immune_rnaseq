@@ -1,0 +1,6 @@
+"Subtype","N_samples","k2_sizes","k2_min_pct","k2_silhouette","Optimal_k","Status","Proceed_10pct","Interpretation"
+"Basal",182,"166/16",8.8,0.444,"NA","NO_SUBGROUPS",FALSE,"Homogeneous immune-HOT (8.8% < 10% threshold)"
+"Her2",72,"66/6",8.3,0.38,"NA","NO_SUBGROUPS",FALSE,"Predominantly one type (8.3% < 10% threshold)"
+"LumA",523,"520/3",0.6,0.753,"NA","NO_SUBGROUPS",FALSE,"Homogeneous immune-COLD (0.6% < 10% threshold)"
+"LumB",199,"191/8",4,0.589,"NA","NO_SUBGROUPS",FALSE,"Homogeneous immune-COLD (4.0% < 10% threshold)"
+"Normal",37,"24/13",35.1,0.428,"2","SUBGROUPS_FOUND",TRUE,"Genuine k=2 subgroups (35.1% — passes threshold)"
