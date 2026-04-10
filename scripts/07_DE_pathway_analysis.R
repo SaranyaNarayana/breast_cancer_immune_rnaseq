@@ -361,6 +361,66 @@ for (subtype in subtypes) {
 saveRDS(de_results, "data/processed/DE/de_results_all.rds")
 
 
+################################################################################
+# SECTION 4: VOLCANO PLOTS
+#
+# X = log2FC (effect size)   Y = -log10(padj) (significance)
+# Top-right = UP + significant    Top-left = DOWN + significant
+# Top genes labelled with ggrepel (no overlap)
+################################################################################
+
+log_message("=== SECTION 4: VOLCANO PLOTS ===")
+
+plot_volcano <- function(res_df, subtype, label,
+                          lfc_cut=1.0, padj_cut=0.05, n_label=15) {
+
+  if (is.null(res_df) || nrow(res_df)==0) return(NULL)
+
+  plot_df <- res_df %>%
+    mutate(log10_padj = -log10(padj + 1e-300))
+
+  top_genes <- plot_df %>% filter(significant) %>%
+    arrange(padj) %>% head(n_label)
+
+  n_up   <- sum(plot_df$direction=="UP")
+  n_down <- sum(plot_df$direction=="DOWN")
+
+  p <- ggplot(plot_df, aes(x=log2FoldChange, y=log10_padj,
+                            color=direction)) +
+    geom_point(alpha=0.5, size=1.2) +
+    geom_vline(xintercept=c(-lfc_cut, lfc_cut),
+               linetype="dashed", color="gray40", linewidth=0.6) +
+    geom_hline(yintercept=-log10(padj_cut),
+               linetype="dashed", color="gray40", linewidth=0.6) +
+    geom_text_repel(data=top_genes, aes(label=gene),
+                    size=2.8, max.overlaps=20, fontface="italic") +
+    annotate("text", x=max(plot_df$log2FoldChange)*0.7,
+             y=max(plot_df$log10_padj)*0.95,
+             label=paste0(n_up," UP"), color="#E41A1C", fontface="bold", size=4) +
+    annotate("text", x=min(plot_df$log2FoldChange)*0.7,
+             y=max(plot_df$log10_padj)*0.95,
+             label=paste0(n_down," DOWN"), color="#377EB8", fontface="bold", size=4) +
+    scale_color_manual(values=c("UP"="#E41A1C","DOWN"="#377EB8","NS"="gray75"),
+                       name=NULL) +
+    labs(
+      title    = paste(subtype, "— Volcano Plot"),
+      subtitle = paste0(label, "\n|log2FC|>", lfc_cut, "  padj<", padj_cut),
+      x="log2 Fold Change", y="-log10(adjusted p-value)"
+    ) + theme_bw() +
+    theme(legend.position="bottom",
+          plot.subtitle=element_text(size=8, color="gray40"))
+
+  ggsave(paste0("results/figures/DE/volcano_", subtype, "_", label, ".png"),
+         p, width=9, height=7, dpi=300)
+  return(p)
+}
+
+for (subtype in subtypes) {
+  if (!is.null(de_results[[subtype]]))
+    plot_volcano(de_results[[subtype]]$res, subtype,
+                 comparison_list[[subtype]]$label)
+}
+
 
 
 
