@@ -5,9 +5,18 @@
 ## Purpose:
 #   - Seprate CIBERSORT QC for validation only (Section 2)
 #   - top 100 high-variance features
-#   -  
-#   - 
-#   - 
+#   - Select PCs using ELBOW method only (Section 4)
+#   - Consensus clustering with 1000 reps (Section 5)
+#   - Optimal k determination with 10% balance rule (Section 6)
+#   - Full results table + silhouette plots (Section 7)
+#   - Extract cluster assignments (Section 8)
+#   - Biological characterization of Normal IC1 vs IC2 (Section 9)
+#   - Immune component scores for all subtypes (Section 10)
+#   - Immune landscape visualizations (Section 11)
+#   - IMMUNE LANDSCAPE VISUALIZATIONS (ALL SUBTYPES)  (Section 12)
+#   - CIBERSORT validation (Section 13)
+#   - prepare data for survival + DE + enrichment analysis (Section 14)
+
 ################################################################################
 
 setwd("/home/sara/BioInfo_projects/breast_cancer_immune_rnaseq/")
@@ -138,28 +147,6 @@ print(table(gsub("_.*", "", clustering_features)))
 
 ################################################################################
 # SECTION 4: PC SELECTION FUNCTION — ELBOW METHOD ONLY
-#
-# WHY ELBOW ONLY (not 50% threshold):
-#   The 50% threshold is an arbitrary cut-off with no statistical basis.
-#   The elbow method directly answers: "where do PCs stop being informative?"
-#   The elbow = the point where adding more PCs gives diminishing returns.
-#   PCs before the elbow capture real biological signal.
-#   PCs after the elbow capture noise.
-#
-# HOW ELBOW IS DETECTED:
-#   Step 1: Compute variance explained per PC (first derivative = rate of drop)
-#   Step 2: Compute second derivative = rate of change of the rate of drop
-#   Step 3: The elbow is where second derivative is MOST POSITIVE
-#           = where the steep drop TRANSITIONS to a flat tail
-#           = the sharpest "bend" in the scree curve (concave up)
-#   Skip PC1 (always the steepest, not the biological elbow)
-#
-# ONE FIGURE PRODUCED:
-#   Scree plot: variance per PC as bars + cumulative variance line
-#               Red dashed = elbow-selected PC
-#               Shows how much variance each PC explains and where the elbow falls
-#
-# FLOOR = 3 PCs | CEILING = 10 PCs
 ################################################################################
 
 select_pcs_elbow <- function(mat_scaled, subtype_name) {
@@ -169,18 +156,6 @@ select_pcs_elbow <- function(mat_scaled, subtype_name) {
   cum_var <- cumsum(var_exp)
   n_test  <- min(20, length(var_exp))
 
-  #--------------------------------------------------------------------
-  # ELBOW DETECTION via second derivative
-  #
-  # var_sub    = variance per PC (decreasing sequence)
-  # first_d    = diff(var_sub) = how fast variance drops between PCs
-  #              All values are negative (curve drops)
-  # second_d   = diff(first_d) = rate of change of the drop rate
-  #              POSITIVE = drop is slowing down (approaching flat)
-  #              NEGATIVE = drop is accelerating (getting steeper)
-  # The ELBOW is where second_d is MOST POSITIVE = drop slows the most
-  # We skip index 1 [-1] because PC1→PC2 transition is always extreme
-  # +2 corrects for: (a) double differencing offset, (b) skipping index 1
   #--------------------------------------------------------------------
   var_sub  <- var_exp[seq_len(n_test)]
   first_d  <- diff(var_sub)                    # length = n_test - 1
@@ -271,12 +246,6 @@ select_pcs_elbow <- function(mat_scaled, subtype_name) {
 
 ################################################################################
 # SECTION 5: CONSENSUS CLUSTERING
-#
-# WHY PCA before clustering:
-#   150+ features are highly correlated → PCA removes redundancy
-#   Clustering in PC space finds genuine sample groupings
-#   pFeature = 1.0: use all selected PCs (already reduced — no further sampling)
-#   pItem = 0.8: each bootstrap uses 80% of samples → stability testing
 ################################################################################
 
 log_message("=== SECTION 5: CONSENSUS CLUSTERING ===")
@@ -369,11 +338,6 @@ for (subtype in subtypes) {
 saveRDS(clustering_results,
         "data/processed/clustering/consensus_clustering_results.rds")
 
-# ── RELOAD SHORTCUT ──────────────────────────────────────────────────────────
-# Consensus clustering (1000 reps x 5 subtypes) takes ~20 minutes.
-# On re-runs, comment out the for-loop above and uncomment the line below:
-# clustering_results <- readRDS("data/processed/clustering/consensus_clustering_results.rds")
-# ─────────────────────────────────────────────────────────────────────────────
 
 # Sanity check
 cat("\nClustering results:\n")
@@ -386,10 +350,6 @@ for (s in subtypes) {
 
 ################################################################################
 # SECTION 6: OPTIMAL K DETERMINATION + BALANCE CHECK
-#
-# KEY RULE: A k is valid ONLY if smallest cluster >= 10% of subtype samples
-# This threshold distinguishes real immune subgroups from outlier detection
-#
 # Three metrics evaluated per k:
 #   (1) Silhouette: how well-separated are clusters in PC space?
 #   (2) Balance:    is smallest cluster >= 10%?
@@ -635,14 +595,6 @@ log_message("Silhouette plots saved")
 
 ################################################################################
 # SECTION 8: EXTRACT CLUSTER ASSIGNMENTS
-#
-# UPDATED RESULTS (elbow PC selection, 10% balance rule):
-#   Basal  : 166/16  (8.8%)  → FAIL — homogeneous immune-hot
-#   Her2   :  66/6   (8.3%)  → FAIL — predominantly one type
-#   LumA   : 520/3   (0.6%)  → FAIL — homogeneous immune-cold
-#   LumB   : 191/8   (4.0%)  → FAIL — homogeneous immune-cold
-#   Normal :  24/13  (35.1%) → PASS — genuine k=2 immune subgroups
-#
 # ONLY Normal proceeds with discrete IC1/IC2 cluster labels.
 # All other subtypes use continuous immune scores (Section 11).
 ################################################################################
@@ -679,21 +631,6 @@ for (subtype in subtypes_with_clusters) {
 
 ################################################################################
 # SECTION 9: BIOLOGICAL CHARACTERIZATION — NORMAL SUBTYPE ONLY
-#
-# WHY: Only Normal has genuine k=2 clusters (IC1=24, IC2=13, 35.1%).
-#      Characterization explains WHAT makes IC1 different from IC2.
-#      This is essential before interpreting survival/DE results.
-#
-# THREE APPROACHES:
-#   (a) PCA loadings — which features drive each PC axis?
-#   (b) Feature importance (Wilcoxon) — which features differ IC1 vs IC2?
-#   (c) Biplot — samples + feature arrows in same space
-#
-# NOTE: Survival analysis, DE analysis, and pathway enrichment are in
-#       07_survival_analysis.R and 08_DE_pathway_analysis.R
-#       Those scripts use:
-#         immune_cluster (IC1/IC2) for Normal
-#         immune_group_primary (High/Low gradient) for all other subtypes
 ################################################################################
 
 log_message("=== SECTION 9: BIOLOGICAL CHARACTERIZATION (Normal only) ===")
@@ -784,12 +721,6 @@ compute_feature_importance <- function(data_main, cluster_df,
 
   #--------------------------------------------------------------------
   # STEP 1: Z-score normalise EACH FEATURE across all samples of this
-  # subtype BEFORE computing the mean difference.
-  # WHY: MCP-counter uses arbitrary enrichment units (0–500+) while
-  #      GSVA uses -1 to +1. Without normalisation the MCP T-cell bar
-  #      dominates at +14 making all GSVA bars invisible.
-  # After z-scoring every feature has mean=0, sd=1 → differences are
-  # directly comparable across methods.
   #--------------------------------------------------------------------
   feat_mat_scaled <- sub_data %>%
     select(sample, immune_cluster, all_of(feat_cols)) %>%
@@ -829,9 +760,6 @@ compute_feature_importance <- function(data_main, cluster_df,
 
       #--------------------------------------------------------------------
       # Explicit biological categories including what "Other" covers
-      # WHY: "Other" is uninformative — users cannot know what it means.
-      # We now catch all major immune cell/pathway types explicitly so
-      # nothing falls through to "Other" if avoidable.
       #--------------------------------------------------------------------
       bio_type = dplyr::case_when(
         # Cytotoxic / innate killing
@@ -1209,12 +1137,6 @@ for (subtype in subtypes_with_clusters) {
 
 ################################################################################
 # SECTION 11: IMMUNE COMPONENT SCORES FOR ALL SUBTYPES
-#
-# WHY: Provides continuous immune activity scores for:
-#   (a) Survival analysis — continuous Cox regression
-#   (b) DE analysis — Q4 vs Q1 extreme comparison
-#   (c) Immune landscape visualization across all subtypes
-#
 # 9 biologically curated components — each is an average of
 # multiple methods measuring the same biological concept
 ################################################################################
@@ -1437,11 +1359,6 @@ log_message("Landscape figures saved")
 
 ################################################################################
 # SECTION 13: CIBERSORT VALIDATION
-#
-# WHY INDEPENDENT VALIDATION:
-#   CIBERSORT was excluded from clustering (Section 2).
-#   If IC1 and IC2 differ in CIBERSORT cell fractions, this is
-#   CROSS-METHOD validation — the clusters are real biology, not artifacts.
 ################################################################################
 
 log_message("=== SECTION 13: CIBERSORT VALIDATION ===")
