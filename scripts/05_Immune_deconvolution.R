@@ -186,10 +186,6 @@ head(rownames(expr_filtered_symbol))
 dup_genes<- rownames(expr_filtered_symbol)[duplicated(rownames(expr_filtered_symbol))]
 cat("Number of duplicated gene symbols:", length(dup_genes), "\n") #0
 
-
-
-
-
 saveRDS(expr_filtered_symbol, "data/processed/immune/expression_filtered_symbol.rds")
 
 # Check how many of your lost genes overlap with your gene sets
