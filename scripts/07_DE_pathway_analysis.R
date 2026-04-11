@@ -753,3 +753,216 @@ for (subtype in subtypes) {
   if (!is.null(pathway_results[[r_key]]))
     plot_pathway_bubble(pathway_results[[r_key]], subtype, "ReactomeImmune")
 }
+
+
+################################################################################
+# SECTION 8: TOP DEG HEATMAP
+#
+# Shows expression of top UP and DOWN DEGs across all samples.
+# WHY: Validates that the DE signal is consistent within groups,
+#      not driven by a few outlier samples.
+# VST normalisation used for display (variance-stabilising transformation).
+# Samples ordered by group; genes clustered by pattern (ward.D2).
+################################################################################
+ 
+log_message("=== SECTION 8: TOP DEG HEATMAP ===")
+ 
+plot_deg_heatmap <- function(res_df, dds, groups_df, subtype, label, n_top=25) {
+ 
+  if (is.null(res_df) || is.null(dds)) return(NULL)
+ 
+  top_up   <- res_df %>% filter(direction=="UP")   %>% arrange(padj) %>% head(n_top) %>% pull(gene)
+  top_down <- res_df %>% filter(direction=="DOWN")  %>% arrange(padj) %>% head(n_top) %>% pull(gene)
+  top_genes <- intersect(c(top_up, top_down), rownames(dds))
+ 
+  if (length(top_genes)==0) {
+    cat("  No DEGs for heatmap:", subtype, "\n"); return(NULL)
+  }
+ 
+  # VST for visualisation — do NOT use raw counts
+  vst_mat <- tryCatch(
+    assay(vst(dds, blind=FALSE)),
+    error = function(e) assay(rlog(dds, blind=FALSE))
+  )
+ 
+  top_genes  <- intersect(top_genes, rownames(vst_mat))
+  mat        <- vst_mat[top_genes, , drop=FALSE]
+  mat_scaled <- t(scale(t(mat)))
+ 
+  sample_order <- groups_df %>%
+    arrange(group) %>%
+    filter(sample %in% colnames(mat_scaled)) %>%
+    pull(sample)
+  mat_scaled <- mat_scaled[, sample_order, drop=FALSE]
+ 
+  ann_col <- groups_df %>%
+    filter(sample %in% sample_order) %>%
+    arrange(match(sample, sample_order)) %>%
+    dplyr::select(group) %>% as.data.frame()
+  rownames(ann_col) <- sample_order
+ 
+  grp_levels <- sort(unique(groups_df$group))
+  grp_cols   <- c("#E41A1C","#377EB8")[seq_len(length(grp_levels))]
+  names(grp_cols) <- grp_levels
+ 
+  ann_row <- data.frame(
+    DEG = ifelse(rownames(mat_scaled) %in% top_up, "UP", "DOWN"),
+    row.names = rownames(mat_scaled)
+  )
+ 
+  png(paste0("results/figures/DE/heatmap_top_DEGs_", subtype, "_", label, ".png"),
+      width=13, height=10, units="in", res=300)
+  pheatmap(
+    mat_scaled,
+    annotation_col    = ann_col,
+    annotation_row    = ann_row,
+    annotation_colors = list(group=grp_cols, DEG=c("UP"="#E41A1C","DOWN"="#377EB8")),
+    color             = colorRampPalette(rev(brewer.pal(11,"RdBu")))(100),
+    breaks            = seq(-2.5, 2.5, length.out=101),
+    cluster_cols      = FALSE,
+    cluster_rows      = TRUE,
+    clustering_method = "ward.D2",
+    show_colnames     = FALSE,
+    fontsize_row      = 7,
+    main = paste(subtype, "— Top", length(top_genes), "DEGs |", label),
+    border_color      = NA
+  )
+  dev.off()
+  cat("  Heatmap saved:", subtype, "—", length(top_genes), "genes\n")
+}
+ 
+for (subtype in subtypes)
+  if (!is.null(de_results[[subtype]]))
+    plot_deg_heatmap(de_results[[subtype]]$res, de_results[[subtype]]$dds,
+                     comparison_list[[subtype]]$groups, subtype,
+                     comparison_list[[subtype]]$label)
+ 
+
+################################################################################
+# SECTION 9: CROSS-SUBTYPE COMPARISON
+#
+# Identifies genes consistently UP or DOWN across multiple subtypes.
+# Shared DEGs suggest a pan-subtype immune gene signature.
+# Subtype-unique DEGs reveal biology specific to that subtype.
+################################################################################
+ 
+log_message("=== SECTION 9: CROSS-SUBTYPE COMPARISON ===")
+ 
+all_degs <- lapply(subtypes, function(s) {
+  if (is.null(de_results[[s]])) return(NULL)
+  de_results[[s]]$res %>% filter(significant) %>% mutate(subtype=s)
+}) %>% bind_rows()
+ 
+if (nrow(all_degs) > 0) {
+ 
+  deg_summary <- all_degs %>%
+    group_by(subtype, direction) %>%
+    summarise(n=n(), .groups="drop") %>%
+    pivot_wider(names_from=direction, values_from=n, values_fill=0)
+ 
+  cat("\n=== DEG SUMMARY ===\n"); print(deg_summary)
+  write.csv(deg_summary, "results/tables/DE/DEG_count_summary.csv", row.names=FALSE)
+ 
+  # Genes shared across subtypes
+  for (dir in c("UP","DOWN")) {
+    shared <- all_degs %>%
+      filter(direction==dir) %>%
+      group_by(gene) %>%
+      summarise(n_subtypes=n_distinct(subtype),
+                subtypes_list=paste(sort(unique(subtype)), collapse="+"),
+                mean_lfc=mean(log2FoldChange, na.rm=TRUE), .groups="drop") %>%
+      arrange(desc(n_subtypes), desc(abs(mean_lfc)))
+    write.csv(shared,
+      paste0("results/tables/DE/genes_", dir, "_across_subtypes.csv"),
+      row.names=FALSE)
+    cat("\nTop genes", dir, "across multiple subtypes:\n")
+    print(head(shared, 15))
+  }
+ 
+  # Bar chart of DEG counts
+  plot_df <- all_degs %>%
+    group_by(subtype, direction) %>%
+    summarise(n=n(), .groups="drop") %>%
+    filter(direction != "NS")
+ 
+  p_counts <- ggplot(plot_df, aes(x=subtype, y=n, fill=direction)) +
+    geom_bar(stat="identity", position="dodge", alpha=0.85) +
+    geom_text(aes(label=n), position=position_dodge(0.9),
+              vjust=-0.3, size=3.5, fontface="bold") +
+    scale_fill_manual(values=c("UP"="#E41A1C","DOWN"="#377EB8"),
+                      labels=c("UP"="Higher in immune-active","DOWN"="Higher in immune-cold"),
+                      name=NULL) +
+    labs(title="DEG Counts by PAM50 Subtype",
+         subtitle=paste0("Normal: IC1 vs IC2  |  Others: Cytotoxic Q4 vs Q1\n",
+                         "|log2FC|>1  |  padj<0.05  |  baseMean>10"),
+         x="PAM50 Subtype", y="Number of DEGs") +
+    theme_bw() +
+    theme(plot.subtitle=element_text(size=8, color="gray40"))
+ 
+  ggsave("results/figures/DE/DEG_counts_by_subtype.png",
+         p_counts, width=9, height=6, dpi=300)
+}
+ 
+################################################################################
+# SECTION 10: NORMAL IC1 vs IC2 DEEP DIVE
+#
+# Extra analysis for Normal because it is the only subtype with genuine
+# discrete immune clusters. Focuses on canonical immune gene categories
+# (checkpoint, cytotoxic, Treg, B cell, etc.) to provide biological context
+# for what distinguishes IC2 from IC1 at the gene level.
+################################################################################
+ 
+log_message("=== SECTION 10: NORMAL IC1 vs IC2 DEEP DIVE ===")
+ 
+if (!is.null(de_results[["Normal"]])) {
+ 
+  normal_res <- de_results[["Normal"]]$res
+ 
+  immune_gene_lists <- list(
+    Checkpoint   = c("PDCD1","CD274","CTLA4","LAG3","TIGIT","HAVCR2","PDCD1LG2","IDO1"),
+    CD8_effector = c("CD8A","CD8B","GZMB","GZMA","PRF1","IFNG","TNF","TBX21","EOMES"),
+    Treg_markers = c("FOXP3","IL2RA","CTLA4","IKZF2","TNFRSF18"),
+    B_cell       = c("MS4A1","CD19","CD79A","CD79B","IGHG1","IGHG4","JCHAIN","MZB1"),
+    Dendritic    = c("ITGAX","ITGAM","CD1C","CLEC9A","LAMP3","IDO1","CCL17","CCL22"),
+    NK_cell      = c("NCAM1","KLRD1","KLRB1","NKG7","GNLY","GZMK","XCL1","XCL2"),
+    Macrophage   = c("CD68","MRC1","CD163","MSR1","CD80","CD86","NOS2","ARG1")
+  )
+ 
+  immune_deg_overlap <- lapply(names(immune_gene_lists), function(cat_name) {
+    genes   <- immune_gene_lists[[cat_name]]
+    overlap <- normal_res %>%
+      filter(gene %in% genes, significant) %>%
+      dplyr::select(gene, log2FoldChange, padj, direction)
+    if (nrow(overlap)>0) overlap$category <- cat_name
+    overlap
+  }) %>% bind_rows()
+ 
+  cat("\n=== IMMUNE GENE DEGs — Normal IC1 vs IC2 ===\n")
+  print(immune_deg_overlap)
+  write.csv(immune_deg_overlap,
+            "results/tables/DE/Normal_IC1vsIC2_immune_gene_DEGs.csv",
+            row.names=FALSE)
+ 
+  if (nrow(immune_deg_overlap) > 0) {
+    p_ig <- ggplot(immune_deg_overlap,
+                   aes(x=log2FoldChange, y=reorder(gene, log2FoldChange),
+                       color=direction, size=-log10(padj+1e-300))) +
+      geom_point(alpha=0.85) +
+      geom_vline(xintercept=0, linewidth=0.8) +
+      geom_vline(xintercept=c(-1,1), linetype="dashed", color="gray50") +
+      scale_color_manual(values=c("UP"="#E41A1C","DOWN"="#377EB8"), name=NULL) +
+      scale_size_continuous(name="-log10(padj)", range=c(3,10)) +
+      facet_grid(category~., scales="free_y", space="free") +
+      labs(title="Normal — Immune Gene DEGs (IC1 vs IC2)",
+           subtitle="Positive LFC = higher in IC2 (immune-active)",
+           x="log2 Fold Change (IC2 vs IC1)", y=NULL) +
+      theme_bw() +
+      theme(strip.text=element_text(face="bold", size=9),
+            axis.text.y=element_text(size=8, face="italic"),
+            plot.subtitle=element_text(size=8, color="gray40"))
+ 
+    ggsave("results/figures/DE/Normal_IC1vsIC2_immune_genes.png",
+           p_ig, width=10, height=max(8, nrow(immune_deg_overlap)*0.4), dpi=300)
+  }
+}
+
