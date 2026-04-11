@@ -10,23 +10,58 @@
 ############################################################
 setwd("/home/sara/BioInfo_projects/breast_cancer_immune_rnaseq/")
 ############################################################
-##---------------------------------------------------------------------
-## Final plots for clinical data
-##---------------------------------------------------------------------
-colnames(clinical_filtered_4)
+
+#-----------------------------------
+# Logging
+#-----------------------------------
+
+log_file <- file(
+  paste0("logs/04_clinical_data_plot_",
+         format(Sys.time(), "%Y%m%d_%H%M%S"),
+         ".log"),
+  open = "wt"
+)
+
+sink(log_file, type = "output")
+sink(log_file, type = "message")
+
+log_message <- function(msg) {
+  timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+  cat(sprintf("[%s] %s\n", timestamp, msg))
+}
+
+
+suppressPackageStartupMessages({
+    library(DESeq2)
+    library(edgeR)
+    library(limma)
+    library(ggplot2)
+    library(pheatmap)
+    library(RColorBrewer)
+    library(dplyr)
+})
+
+clinical_filtered <- readRDS("data/processed/clinical_filtered.rds")
+cat("Dimensions of clinical_filtered:", dim(clinical_filtered), "\n")
+
+
 dir.create("results/figures/clinical_overview", recursive = TRUE, showWarnings = FALSE)
+
+
+
+
 
 ##---------------------------------------------------------
 ## Plot 1: DEMOGRAPHIC OVERVIEW-Age distribution
 ##---------------------------------------------------------
 
-p1 <- ggplot(clinical_filtered_4, aes(x = age_at_diagnosis_years)) +
+p1 <- ggplot(clinical_filtered, aes(x = age_at_diagnosis_years)) +
   geom_histogram(bins = 30, fill = "steelblue", color = "white", alpha = 0.8) +
   geom_vline(aes(xintercept = median(age_at_diagnosis_years)), 
              color = "red", linetype = "dashed", size = 1) +
-  annotate("text", x = median(clinical_filtered_4$age_at_diagnosis_years) + 5, 
+  annotate("text", x = median(clinical_filtered$age_at_diagnosis_years) + 5, 
            y = Inf, vjust = 2,
-           label = paste("Median:", round(median(clinical_filtered_4$age_at_diagnosis_years), 1), "years"),
+           label = paste("Median:", round(median(clinical_filtered$age_at_diagnosis_years), 1), "years"),
            color = "red", size = 4) +
   labs(title = "Age Distribution at Diagnosis",
        x = "Age (years)", y = "Number of Patients") +
@@ -41,7 +76,7 @@ ggsave("results/figures/clinical_overview/01_age_distribution.png",
 ## Plot 2: DEMOGRAPHIC OVERVIEW- Age by PAM50 subtype
 ##---------------------------------------------------------
 
-p2 <- ggplot(clinical_filtered_4, aes(x = PAM50_Subtype, y = age_at_diagnosis_years, 
+p2 <- ggplot(clinical_filtered, aes(x = PAM50_Subtype, y = age_at_diagnosis_years, 
                                         fill = PAM50_Subtype)) +
   geom_boxplot(alpha = 0.7, outlier.shape = 16, outlier.size = 1) +
   geom_jitter(width = 0.2, alpha = 0.2, size = 0.8) +
@@ -61,7 +96,7 @@ ggsave("results/figures/clinical_overview/02_age_by_pam50.png",
 ##---------------------------------------------------------
 ## Plot 3: DEMOGRAPHIC OVERVIEW- Age groups distribution
 ##---------------------------------------------------------
-p3 <- ggplot(clinical_filtered_4, aes(x = age_group, fill = age_group)) +
+p3 <- ggplot(clinical_filtered, aes(x = age_group, fill = age_group)) +
   geom_bar(alpha = 0.8) +
   geom_text(stat = 'count', aes(label = after_stat(count)), 
             vjust = -0.5, size = 4, fontface = "bold") +
@@ -79,7 +114,7 @@ ggsave("results/figures/clinical_overview/03_age_groups.png",
 ##---------------------------------------------------------
 ## Plot 4: PAM50 SUBTYPE ANALYSIS:PAM50 subtype distribution
 ##---------------------------------------------------------
-pam50_counts <- clinical_filtered_4 %>%
+pam50_counts <- clinical_filtered %>%
   count(PAM50_Subtype) %>%
   mutate(percentage = n / sum(n) * 100)
 
@@ -122,7 +157,7 @@ ggsave("results/figures/clinical_overview/05_pam50_pie.png",
 ## Plot 6: STAGE ANALYSIS:Stage distribution
 ##---------------------------------------------------------
 
-stage_counts <- clinical_filtered_4 %>%
+stage_counts <- clinical_filtered %>%
   count(paper_pathologic_stage) %>%
   mutate(percentage = n / sum(n) * 100)
 
@@ -145,7 +180,7 @@ ggsave("results/figures/clinical_overview/06_stage_distribution.png",
 ##---------------------------------------------------------
 ## Plot 7: STAGE ANALYSIS:Stage by PAM50 subtype
 ##---------------------------------------------------------
-p7 <- ggplot(clinical_filtered_4, aes(x = PAM50_Subtype, fill = paper_pathologic_stage)) +
+p7 <- ggplot(clinical_filtered, aes(x = PAM50_Subtype, fill = paper_pathologic_stage)) +
   geom_bar(position = "fill", alpha = 0.8) +
   scale_y_continuous(labels = scales::percent) +
   scale_fill_brewer(palette = "RdYlGn", direction = -1) +
@@ -163,7 +198,7 @@ ggsave("results/figures/clinical_overview/07_stage_by_pam50.png",
 ## Plot 8: STAGE ANALYSIS:Stage by PAM50 subtype
 ##---------------------------------------------------------
 
-p8 <- ggplot(clinical_filtered_4, aes(x = PAM50_Subtype, fill = paper_pathologic_stage)) +
+p8 <- ggplot(clinical_filtered, aes(x = PAM50_Subtype, fill = paper_pathologic_stage)) +
   geom_bar(position = "dodge", alpha = 0.8) +
   scale_fill_brewer(palette = "RdYlGn", direction = -1) +
   labs(title = "Stage Distribution by PAM50 Subtype (Counts)",
@@ -180,7 +215,7 @@ ggsave("results/figures/clinical_overview/08_stage_by_pam50_counts.png",
 ## Plot 9: Violin plot: PAM50 subtype vs age at diagnosis
 ##---------------------------------------------------------
 
-p9 <-ggplot(clinical_filtered_4, 
+p9 <-ggplot(clinical_filtered, 
        aes(x = PAM50_Subtype, y = age_at_diagnosis_years, fill = PAM50_Subtype)) +
   geom_violin(alpha = 0.7) +
   geom_boxplot(width = 0.15, fill = "white", alpha = 0.8) +
@@ -197,7 +232,7 @@ ggsave("results/figures/clinical_overview/09_age_violin_pam50.png", p9, width = 
 ## Plot 10: Violin plot: stage vs age at diagnosis
 ##---------------------------------------------------------
 
-p10 <- ggplot(clinical_filtered_4 %>% filter(paper_pathologic_stage != "Unknown"), 
+p10 <- ggplot(clinical_filtered %>% filter(paper_pathologic_stage != "Unknown"), 
        aes(x = paper_pathologic_stage, y = age_at_diagnosis_years, 
            fill = paper_pathologic_stage)) +
   geom_violin(alpha = 0.7) +
@@ -216,7 +251,7 @@ ggsave("results/figures/clinical_overview/10_age_violin_stage.png", p10, width =
 ## Plot 11: DEMOGRAPHIC CHARACTERISTICS - Gender distribution
 ##---------------------------------------------------------
 
-p11 <- ggplot(clinical_filtered_4, aes(x = gender, fill = gender)) +
+p11 <- ggplot(clinical_filtered, aes(x = gender, fill = gender)) +
   geom_bar(alpha = 0.8) +
   geom_text(stat = 'count', aes(label = after_stat(count)), 
             vjust = -0.5, size = 5, fontface = "bold") +
@@ -235,7 +270,7 @@ ggsave("results/figures/clinical_overview/11_gender_distribution.png",
 ## Plot 11: DEMOGRAPHIC CHARACTERISTICS - Race distribution
 ##---------------------------------------------------------
 
-race_counts <- clinical_filtered_4 %>%
+race_counts <- clinical_filtered %>%
   count(race) %>%
   arrange(desc(n))
 

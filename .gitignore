@@ -3,12 +3,24 @@
 .RData
 .Rproj.user
 
+
+#scripts
+scripts/dup_scripts
+scripts/proposal_Biostat
+
 # Data
-data/raw/
+data/
+
+#GDS downloads
+GDCdata/
 
 # Outputs
-results/
-figures/
+#results/
+#figures/
+
+
+#logfiles
+logs/
 
 # OS
 .DS_Store
