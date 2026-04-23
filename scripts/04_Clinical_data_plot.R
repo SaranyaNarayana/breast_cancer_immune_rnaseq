@@ -125,7 +125,7 @@ p4 <- ggplot(pam50_counts, aes(x = reorder(PAM50_Subtype, -n), y = n,
             vjust = -0.3, size = 4, fontface = "bold") +
   scale_fill_brewer(palette = "Set2") +
   labs(title = "PAM50 Molecular Subtype Distribution",
-       subtitle = paste0("Total patients: ", nrow(clinical_filtered_4)),
+       subtitle = paste0("Total patients: ", nrow(clinical_filtered)),
        x = "PAM50 Subtype", y = "Number of Patients") +
   theme_bw() +
   theme(legend.position = "none",
