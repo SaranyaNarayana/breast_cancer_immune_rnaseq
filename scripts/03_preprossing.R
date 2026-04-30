@@ -289,7 +289,7 @@ annotation_col_1 <- data.frame(
 #pheat with  PAM50_Subtype
 png("results/figures/preprocessing_plots/06_sample_correlation_heatmap_PAM50_Subtype.png", width = 12, height = 12, units = "in", res = 300)
 pheatmap(sample_cor, 
-         annotation_col = annotation_col, 
+         annotation_col = annotation_col_1, 
          show_rownames = FALSE, 
          show_colnames = FALSE, 
          main = "Sample Correlation Heatmap by PAM50_Subtype",
