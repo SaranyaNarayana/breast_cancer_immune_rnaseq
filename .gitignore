@@ -29,3 +29,8 @@ Thumbs.db
 
 my_workspace.RData
 *.RData
+*.rds
+*.log
+MANIFEST.txt
+analysis/
+environment/
