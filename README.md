@@ -1,166 +1,319 @@
-# Breast Cancer Immune RNA-seq Analysis
+# Breast Cancer Immune Heterogeneity within PAM50 Subtypes
 
-This repository contains an RNA-seq analysis project investigating immune-related
-heterogeneity within breast cancer subtypes using TCGA-BRCA data.
-# Immune Heterogeneity in Breast Cancer: Beyond Molecular Subtypes
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![R Version](https://img.shields.io/badge/R-%E2%89%A5%204.0.0-blue.svg)](https://www.r-project.org/)
-[![TCGA](https://img.shields.io/badge/Data-TCGA--BRCA-green.svg)](https://portal.gdc.cancer.gov/)
+**Author:** Saranya Narayana 
+**Data source:** TCGA-BRCA (GDC portal, STAR-Counts pipeline)  
+**Final cohort:** 1,013 patients | 23,059 genes | 5 PAM50 subtypes
+**GitHub:** [SaranyaNarayana/breast_cancer_immune_rnaseq](https://github.com/SaranyaNarayana/breast_cancer_immune_rnaseq)
 
 ## Overview
 
-This project investigates **immune-related gene expression heterogeneity within breast cancer molecular subtypes** using TCGA-BRCA RNA-sequencing data. While PAM50 molecular subtypes (Basal, Her2-enriched, Luminal A, Luminal B) are well-established, this analysis reveals that **significant immune-mediated variation exists within these subtypes**, with important prognostic and biological implications.
+This project investigates **immune-related gene expression heterogeneity within breast cancer PAM50 molecular subtypes** using TCGA-BRCA RNA-sequencing data. While PAM50 classification (Basal, Her2, LumA, LumB, Normal-like) guides clinical decisions, it does not account for the immune microenvironment. This analysis reveals that significant immune-mediated variation exists within subtypes, with implications for immunotherapy eligibility and patient stratification.
 
 ### Research Question
 
-> *"Do immune-related gene expression patterns reveal biologically meaningful heterogeneity within breast cancer PAM50 subtypes beyond standard clinical classifications?"*
+
+> *"Do immune-related gene expression patterns reveal biologically meaningful heterogeneity within breast cancer PAM50 subtypes beyond standard molecular classification?"*
+
 
 ### Key Findings
 
-✅ **Immune heterogeneity exists within all PAM50 subtypes**
-- Each molecular subtype can be subdivided into 2-4 immune-based clusters
-- Clusters show distinct immune cell compositions and functional states
+✅ **Immune heterogeneity exists only within the Normal-like subtype**
+- The analysis yeilded two genuine immune clusters (IC1/IC2) by the 10% balance rule. 
+- All other PAM50 subtypes failed clustering due to insufficient immune separation.
 
-✅ **Immune clusters have clinical significance**
-- Significant differences in overall survival between immune clusters
-- Prognostic value independent of age and tumor stage
-- "Hot" immune-infiltrated tumors show better outcomes
+✅  **IC1 (Immune-Cold, n=24)**
+- Stromal/M2-dominated.
+- Immune-excluded phenotype with no T cell activation markers.
 
-✅ **Biological mechanisms are distinct**
-- Differential gene expression reveals unique pathway activations
-- "Hot" tumors: T cell-inflamed, IFN-γ response
-- "Cold" tumors: Immune desert, poor antigen presentation
-- "Suppressed" tumors: Active immunosuppression, high Treg infiltration
+✅ **IC2 (Immune-Inflamed, n=13)**
+- Clonal T cell expansion (TRBV5-1, TRAV8-2), cytotoxic markers (CD8A, GZMB, PRF1), checkpoint activation (PDCD1, LAG3, TIGIT).
+- Independently validated by CIBERSORT (p < 0.01).
 
+✅ **A universal cytotoxic T cell programme** 
+- Genes such as NKG7, CD8A, GZMB, TBX21, GZMA is active across all PAM50 subtypes when immune infiltration is high. 
+- confirmed by pathway enrichment analysis (HALLMARK_ALLOGRAFT_REJECTION, IFN-γ response).
 ---
 
 ## Table of Contents
 
-- [Installation](#installation)
-- [Quick Start](#quick-start)
 - [Project Structure](#project-structure)
+- [Quickstart](#quickstart)
+- [Pipeline Overview](#pipeline-overview)
 - [Workflow Overview](#workflow-overview)
-- [Analysis Scripts](#analysis-scripts)
-- [Output Files](#output-files)
-- [Results](#results)
 - [Requirements](#requirements)
-- [Citation](#citation)
+- [Reproducibility](#reproducibility)
+- [Troubleshooting](#troubleshooting)
+- [References](#references)
 - [License](#license)
-- [Contact](#contact)
 
----
-
-## Installation
-
-### Prerequisites
-
-- **R version ≥ 4.0.0**
-- **RStudio** (recommended)
-- **16 GB RAM minimum** (32 GB recommended for large datasets)
-- **~10 GB disk space** for data and results
-
-### Setup
-
-1. **Clone the repository:**
-```bash
-git clone https://github.com/yourusername/breast-cancer-immune-heterogeneity.git
-cd breast-cancer-immune-heterogeneity
-```
-
-2. **Install required R packages:**
-```r
-# Run the package installation script
-source("install_packages.R")
-```
-
-This will install:
-- Bioconductor packages: `TCGAbiolinks`, `DESeq2`, `GSVA`, `ComplexHeatmap`, etc.
-- CRAN packages: `tidyverse`, `survival`, `ConsensusClusterPlus`, etc.
-- Immune deconvolution: `immunedeconv`, `IOBR`
-
-**Installation time:** ~30-60 minutes (depending on internet speed)
-
----
-
-## Quick Start
-
-### Option 1: Run Complete Pipeline
-```r
-# Run all analysis steps sequentially
-source("run_analysis_pipeline.R")
-```
-
-**Total runtime:** 6-10 hours
-
-### Option 2: Run Scripts Individually
-```r
-# Step 1: Download TCGA data
-source("01_data_acquisition.R")
-
-# Step 2: Quality control and preprocessing
-source("02_preprocessing.R")
-
-# Step 3: Immune profiling
-source("03_immune_deconvolution.R")
-
-# Step 4: Clustering analysis
-source("04_clustering_analysis.R")
-
-# Step 5: Survival analysis
-source("05_survival_analysis.R")
-
-# Step 6: Biological characterization
-source("06_cluster_characterization.R")
-```
-
-### Option 3: Use Pre-downloaded Data
-
-If you already have TCGA-BRCA data:
-
-1. Place raw data in `data/raw/`
-2. Skip script 01 and start from script 02
 
 ---
 
 ## Project Structure
+
 ```
-breast-cancer-immune-heterogeneity/
+breast_cancer_immune_rnaseq/
 │
-├── README.md                          # This file
-├── QUICKSTART.md                      # Beginner-friendly guide
-├── METHODS.md                         # Detailed methodology
-├── LICENSE                            # MIT License
-├── requirements.txt                   # R package list
+├── scripts/
+│   ├── 01_download_tcga.R          # Download TCGA-BRCA data from GDC
+│   ├── 02_qc_filtering.R           # Clinical QC, deduplication, variable cleaning
+│   ├── 03_preprossing.R            # Normalisation (DESeq2 VST, TMM), PCA, QC plots
+│   ├── 04_Clinical_data_plot.R     # Clinical variable visualisations
+│   ├── 05_Immune_deconvolution.R   # GSVA, ssGSEA, quanTIseq, MCP-counter, EPIC, xCell
+│   ├── 06_clustering_analysis.R    # Consensus clustering per PAM50 subtype
+│   └── 07_DE_pathway_analysis.R    # DESeq2 differential expression + fgsea enrichment
 │
-├── install_packages.R                 # Automated package installation
-├── run_analysis_pipeline.R            # Master script to run all analyses
-│
-├── 01_data_acquisition.R              # Download TCGA-BRCA data
-├── 02_preprocessing.R                 # QC, filtering, normalization
-├── 03_immune_deconvolution.R          # Immune profiling
-├── 04_clustering_analysis.R           # Consensus clustering
-├── 05_survival_analysis.R             # Kaplan-Meier & Cox regression
-├── 06_cluster_characterization.R      # DEG & pathway analysis
+├── run_pipeline.R                  # Master script — runs all steps in order
+├── setup_renv.R                    # One-time environment setup
+├── renv.lock                       # Locked package versions (auto-generated)
 │
 ├── data/
-│   ├── raw/                           # Raw TCGA data (auto-generated)
-│   └── processed/                     # Processed data files
-│       ├── immune/                    # Immune deconvolution results
-│       └── clustering/                # Clustering results
+│   ├── raw/                        # Downloaded batch RDS files [git-ignored]
+│   └── processed/                  # Filtered and normalised objects [git-ignored]
+│       ├── immune/
+│       ├── clustering/
+│       └── DE/
 │
-└── results/
-    ├── consensus_clustering/          # Consensus clustering plots
-    ├── figures/                       # Publication-ready figures
-    │   ├── qc/
-    │   ├── immune/
-    │   ├── clustering/
-    │   ├── survival/
-    │   └── characterization/
-    └── tables/                        # Summary tables (CSV)
-        ├── degs/                      # Differential expression results
-        └── pathways/                  # Pathway enrichment results
+├── results/
+│   ├── consensus_clustering
+│   ├── Basal
+│   │   ├── consensus001.png
+│   │   ├── consensus002.png
+│   │   ├── consensus003.png
+│   │   ├── consensus004.png
+│   │   ├── consensus005.png
+│   │   ├── consensus006.png
+│   │   ├── consensus007.png
+│   │   ├── consensus008.png
+│   │   └── consensus009.png
+│   ├── Her2
+│   │   ├── consensus001.png
+│   │   ├── consensus002.png
+│   │   ├── consensus003.png
+│   │   ├── consensus004.png
+│   │   ├── consensus005.png
+│   │   ├── consensus006.png
+│   │   ├── consensus007.png
+│   │   ├── consensus008.png
+│   │   └── consensus009.png
+│   ├── LumA
+│   │   ├── consensus001.png
+│   │   ├── consensus002.png
+│   │   ├── consensus003.png
+│   │   ├── consensus004.png
+│   │   ├── consensus005.png
+│   │   ├── consensus006.png
+│   │   ├── consensus007.png
+│   │   ├── consensus008.png
+│   │   └── consensus009.png
+│   ├── LumB
+│   │   ├── consensus001.png
+│   │   ├── consensus002.png
+│   │   ├── consensus003.png
+│   │   ├── consensus004.png
+│   │   ├── consensus005.png
+│   │   ├── consensus006.png
+│   │   ├── consensus007.png
+│   │   ├── consensus008.png
+│   │   └── consensus009.png
+│   ├── Normal
+│   │   ├── consensus001.png
+│   │   ├── consensus002.png
+│   │   ├── consensus003.png
+│   │   ├── consensus004.png
+│   │   ├── consensus005.png
+│   │   ├── consensus006.png
+│   │   ├── consensus007.png
+│   │   ├── consensus008.png
+│   │   └── consensus009.png
+│   └── optimal_k_results.rds
+├── figures
+│   ├── DE
+│   │   ├── 2_volcano_Basal_High_Q4_vs_Low_Q1.png
+│   │   ├── 2_volcano_Her2_High_Q4_vs_Low_Q1.png
+│   │   ├── 2_volcano_LumA_High_Q4_vs_Low_Q1.png
+│   │   ├── 2_volcano_LumB_High_Q4_vs_Low_Q1.png
+│   │   ├── 2_volcano_Normal_IC1_vs_IC2.png
+│   │   ├── DEG_counts_by_subtype.png
+│   │   ├── MA_Basal_High_Q4_vs_Low_Q1.png
+│   │   ├── MA_Her2_High_Q4_vs_Low_Q1.png
+│   │   ├── MA_LumA_High_Q4_vs_Low_Q1.png
+│   │   ├── MA_LumB_High_Q4_vs_Low_Q1.png
+│   │   ├── MA_Normal_IC1_vs_IC2.png
+│   │   ├── Normal_IC1vsIC2_immune_genes.png
+│   │   ├── heatmap_top_DEGs_Basal_High_Q4_vs_Low_Q1.png
+│   │   ├── heatmap_top_DEGs_Her2_High_Q4_vs_Low_Q1.png
+│   │   ├── heatmap_top_DEGs_LumA_High_Q4_vs_Low_Q1.png
+│   │   ├── heatmap_top_DEGs_LumB_High_Q4_vs_Low_Q1.png
+│   │   ├── heatmap_top_DEGs_Normal_IC1_vs_IC2.png
+│   │   └── pathway
+│   │       ├── bubble_Hallmark_Basal.png
+│   │       ├── bubble_Hallmark_Her2.png
+│   │       ├── bubble_Hallmark_LumA.png
+│   │       ├── bubble_Hallmark_LumB.png
+│   │       ├── bubble_Hallmark_Normal.png
+│   │       ├── bubble_ReactomeImmune_Basal.png
+│   │       ├── bubble_ReactomeImmune_Her2.png
+│   │       ├── bubble_ReactomeImmune_LumA.png
+│   │       ├── bubble_ReactomeImmune_LumB.png
+│   │       └── bubble_ReactomeImmune_Normal.png
+│   ├── clinical_overview
+│   │   ├── 01_age_distribution.png
+│   │   ├── 02_age_by_pam50.png
+│   │   ├── 03_age_groups.png
+│   │   ├── 04_pam50_distribution.png
+│   │   ├── 05_pam50_pie.png
+│   │   ├── 06_stage_distribution.png
+│   │   ├── 07_stage_by_pam50.png
+│   │   ├── 08_stage_by_pam50_counts.png
+│   │   ├── 09_age_violin_pam50.png
+│   │   ├── 10_age_violin_stage.png
+│   │   ├── 11_gender_distribution.png
+│   │   └── 12_race_distribution.png
+│   ├── clustering
+│   │   ├── 01_silhouette_all_subtypes.png
+│   │   ├── 02_immune_landscape_heatmap.png
+│   │   ├── 03_immune_scores_boxplots.png
+│   │   ├── cibersort_validation_Normal.png
+│   │   ├── feature_importance_Normal.png
+│   │   ├── heatmap_clusters_Normal.png
+│   │   ├── pca
+│   │   │   ├── PCA_Normal.png
+│   │   │   ├── biplot_Normal.png
+│   │   │   ├── loadings_Normal.png
+│   │   │   ├── pca_clusters_Normal.png
+│   │   │   ├── scree_Basal.png
+│   │   │   ├── scree_Her2.png
+│   │   │   ├── scree_LumA.png
+│   │   │   ├── scree_LumB.png
+│   │   │   └── scree_Normal.png
+│   │   └── umap
+│   │       ├── UMAP_Normal.png
+│   │       └── umap_clusters_Normal.png
+│   ├── immune
+│   │   └── immune_features_correlation.png
+│   ├── pathway
+│   └── preprocessing_plots
+│       ├── 01_total_counts_distribution.png
+│       ├── 02_genes_detected_distribution.png
+│       ├── 03_Percentage_of_samples_with_gene_expression_TPM.png
+│       ├── 04_PCA_VST_normalized_PAM50.png
+│       ├── 05_PCA_VST_normalized_stage.png
+│       ├── 06_sample_correlation_heatmap_PAM50_Subtype.png
+│       └── 07_sample_correlation_heatmap_stage_pathological stage.png
+├── immune
+│   ├── cibersort_results_merged.rds
+│   ├── cibersort_results_merged_barcode.rds
+│   ├── epic_results.rds
+│   ├── epic_summary.csv
+│   ├── gsva_scores.rds
+│   ├── mcp_results.rds
+│   ├── mcp_summary.csv
+│   ├── quantiseq_results.rds
+│   ├── quantiseq_summary.csv
+│   ├── ssgsea_scores.rds
+│   ├── xcell_results.rds
+│   ├── xcell_score_summary.csv
+│   └── xcell_summary.csv
+└── tables
+    ├── DE
+    │   ├── DEG_count_summary.csv
+    │   ├── DESeq2_Basal_High_Q4_vs_Low_Q1.csv
+    │   ├── DESeq2_Her2_High_Q4_vs_Low_Q1.csv
+    │   ├── DESeq2_LumA_High_Q4_vs_Low_Q1.csv
+    │   ├── DESeq2_LumB_High_Q4_vs_Low_Q1.csv
+    │   ├── DESeq2_Normal_IC1_vs_IC2.csv
+    │   ├── Normal_IC1vsIC2_immune_gene_DEGs.csv
+    │   ├── genes_DOWN_across_subtypes.csv
+    │   ├── genes_UP_across_subtypes.csv
+    │   └── pathway
+    │       └── fgsea_Hallmark_Basal_High_Q4_vs_Low_Q1.csv
+    ├── clustering
+    │   ├── clustering_summary.csv
+    │   ├── feature_importance_Normal.csv
+    │   ├── immune_group_assignments.csv
+    │   └── optimal_k_full_metrics.csv
+    └── pathway
+        ├── fgsea_Hallmark_Basal_High_Q4_vs_Low_Q1.csv
+        ├── fgsea_Hallmark_Her2_High_Q4_vs_Low_Q1.csv
+        ├── fgsea_Hallmark_LumA_High_Q4_vs_Low_Q1.csv
+        ├── fgsea_Hallmark_LumB_High_Q4_vs_Low_Q1.csv
+        ├── fgsea_Hallmark_Normal_IC1_vs_IC2.csv
+        ├── fgsea_ReactomeImmune_Basal_High_Q4_vs_Low_Q1.csv
+        ├── fgsea_ReactomeImmune_Her2_High_Q4_vs_Low_Q1.csv
+        ├── fgsea_ReactomeImmune_LumA_High_Q4_vs_Low_Q1.csv
+        ├── fgsea_ReactomeImmune_LumB_High_Q4_vs_Low_Q1.csv
+        └── fgsea_ReactomeImmune_Normal_IC1_vs_IC2.csv
+│
+├── logs/                           # Timestamped per-script log files
+├── .gitignore
+└── README.md
 ```
+
+> `data/`  and `logs/` are git-ignored as they contain large files. All outputs are fully regenerated by running the pipeline.
+
+---
+
+## Quickstart
+
+### 1. Clone the repository
+
+```bash
+git clone git@github.com:SaranyaNarayana/breast_cancer_immune_rnaseq.git
+cd breast_cancer_immune_rnaseq
+```
+
+### 2. Set up the R environment (run once)
+
+```r
+Rscript setup_renv.R
+```
+
+This installs all required CRAN and Bioconductor packages and writes `renv.lock` to lock exact versions.
+
+### 3. Run the full pipeline
+
+```r
+Rscript run_pipeline.R
+```
+
+**Estimated total runtime:** 6–10 hours (depending on download speed and RAM)
+
+#### Resume from a specific step
+
+```r
+Rscript run_pipeline.R --from 05
+```
+
+#### Run only specific steps
+
+```r
+Rscript run_pipeline.R --only 06,07
+```
+
+#### If you already have TCGA data downloaded
+
+Place batch RDS files in `data/raw/` and start from step 02:
+
+```r
+Rscript run_pipeline.R --from 02
+```
+
+
+---
+
+## Pipeline Overview
+
+| Step | Script | Description | Key Input | Key Output |
+|------|--------|-------------|-----------|------------|
+| 01 | `01_download_tcga.R` | Download TCGA-BRCA RNA-seq from GDC | GDC API | `data/raw/TCGA_BRCA_rna_data.rds` |
+| 02 | `02_qc_filtering.R` | Clinical QC, deduplication, PAM50 cleaning | raw RDS | `clinical_filtered_clean.rds` |
+| 03 | `03_preprossing.R` | Gene filtering, DESeq2 VST normalisation, PCA | filtered counts | normalised matrices, QC figures |
+| 04 | `04_Clinical_data_plot.R` | Demographic and clinical visualisations | clinical RDS | `results/figures/clinical_overview/` |
+| 05 | `05_Immune_deconvolution.R` | 7-method immune profiling, 159 features/sample | VST matrix | `immune_features_full.rds` |
+| 06 | `06_clustering_analysis.R` | Consensus clustering per PAM50 subtype | immune scores | IC1/IC2 cluster assignments |
+| 07 | `07_DE_pathway_analysis.R` | DESeq2 DEGs + fgsea pathway enrichment | cluster labels + counts | DEG tables, pathway figures |
+
 
 ---
 
@@ -175,13 +328,12 @@ breast-cancer-immune-heterogeneity/
           │  01_data_acquisition │
           │  • Download RNA-seq  │
           │  • Extract clinical  │
-          │  • QC filtering      │
           └──────────┬───────────┘
                      │
                      ▼
           ┌──────────────────────┐
-          │  02_preprocessing    │
-          │  • Gene filtering    │
+          │  02_qc_filtering.R  │
+          │  • Clinical QC    │
           │  • Normalization     │
           │  • Batch correction  │
           └──────────┬───────────┘
