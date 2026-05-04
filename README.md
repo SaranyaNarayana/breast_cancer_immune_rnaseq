@@ -332,27 +332,29 @@ Rscript run_pipeline.R --from 02
                      │
                      ▼
           ┌──────────────────────┐
-          │  02_qc_filtering.R  │
-          │  • Clinical QC    │
-          │  • Normalization     │
-          │  • Batch correction  │
+          │  02_qc_filtering.R   │
+          │  • Clinical QC       │
+          │  • Deduplication     │
+          │  • PAM50 cleaning    │  
           └──────────┬───────────┘
                      │
                      ▼
-          ┌──────────────────────┐
-          │  03_immune_deconv    │
-          │  • 7 methods         │
-          │  • GSVA/ssGSEA       │
-          │  • ~200 features     │
-          └──────────┬───────────┘
+          ┌─────────────────────────────┐
+          │  03_preprossing             │
+          │  • Gene filtering           │
+          │  • DESeq2 VST normalisation │
+          │  • PCA                      │
+          │  • Filtered counts          │
+          │  • Normalised matrices      │
+          │  • QC figures               │
+          └──────────┬──────────────────┘
                      │
                      ▼
-          ┌──────────────────────┐
-          │  04_clustering       │
-          │  • Consensus (k=2-6) │
-          │  • Per PAM50 subtype │
-          │  • PCA/UMAP          │
-          └──────────┬───────────┘
+          ┌───────────────────────────────┐
+          │  04_Clinical_data_plot        │
+          │  • Demographic visualisations │
+          │  • clinical visualisations    │
+          └──────────┬────────────────────┘
                      │
                      ▼
           ┌──────────────────────┐
