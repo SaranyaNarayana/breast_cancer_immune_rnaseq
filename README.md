@@ -307,28 +307,24 @@ Rscript run_pipeline.R --from 02
           └──────────┬────────────────────┘
                      │
                      ▼
-          ┌──────────────────────┐
-          │  05_survival         │
-          │  • Kaplan-Meier      │
-          │  • Cox regression    │
-          │  • Log-rank test     │
-          └──────────┬───────────┘
+          ┌─────────────────────────────┐
+          │  05_Immune_deconvolution    │
+          │  • 7-method immune profiling│
+          │  • 159 features/sample      │
+          └──────────┬──────────────────┘
                      │
                      ▼
-          ┌──────────────────────┐
-          │  06_characterization │
-          │  • DESeq2 DEG        │
-          │  • Pathway analysis  │
-          │  • Immune phenotypes │
-          └──────────┬───────────┘
+          ┌──────────────────────────────────────────┐
+          │  06_clustering_analysis                  │
+          │  • Consensus clustering per PAM50 subtype│
+          └──────────┬───────────────────────────────┘
                      │
                      ▼
-          ┌──────────────────────┐
-          │  Publication Results │
-          │  • Figures           │
-          │  • Tables            │
-          │  • Summary report    │
-          └──────────────────────┘
+          ┌─────────────────────────────┐
+          │ 07_DE_pathway_analysis      │
+          │  • DESeq2 DEGs              │
+          │  • fgsea pathway enrichment │
+          └─────────────────────────────┘
 ```
 
 ---
