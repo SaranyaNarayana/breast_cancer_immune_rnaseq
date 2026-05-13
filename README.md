@@ -35,18 +35,31 @@ This project investigates **immune-related gene expression heterogeneity within 
 ---
 
 ## Table of Contents
-
-- [Project Structure](#project-structure)
-- [Quickstart](#quickstart)
-- [Pipeline Overview](#pipeline-overview)
-- [Workflow Overview](#workflow-overview)
-- [Requirements](#requirements)
-- [Reproducibility](#reproducibility)
-- [Troubleshooting](#troubleshooting)
-- [References](#references)
-- [License](#license)
-- [Acknowledgments] (#Acknowledgments)
-
+- [Breast Cancer Immune Heterogeneity within PAM50 Subtypes](#breast-cancer-immune-heterogeneity-within-pam50-subtypes)
+  - [Overview](#overview)
+    - [Research Question](#research-question)
+    - [Key Findings](#key-findings)
+  - [Table of Contents](#table-of-contents)
+  - [Project Structure](#project-structure)
+  - [Quickstart](#quickstart)
+    - [1. Clone the repository](#1-clone-the-repository)
+    - [2. Set up the R environment (run once)](#2-set-up-the-r-environment-run-once)
+    - [3. Run the full pipeline](#3-run-the-full-pipeline)
+      - [Resume from a specific step](#resume-from-a-specific-step)
+      - [Run only specific steps](#run-only-specific-steps)
+      - [If you already have TCGA data downloaded](#if-you-already-have-tcga-data-downloaded)
+  - [Pipeline Overview](#pipeline-overview)
+  - [Workflow Overview](#workflow-overview)
+  - [Requirements](#requirements)
+    - [System](#system)
+    - [Key R Packages](#key-r-packages)
+  - [Reproducibility](#reproducibility)
+  - [Troubleshooting](#troubleshooting)
+  - [References](#references)
+  - [License](#license)
+  - [Acknowledgments](#acknowledgments)
+  - [Planned Features](#planned-features)
+  - [Contributing](#contributing)
 
 ---
 
@@ -428,7 +441,7 @@ This project is licensed under the MIT License. TCGA data is publicly available 
 
 ---
 
-### Planned Features
+## Planned Features
 - [ ] Interactive Shiny dashboard
 - [ ] Survival prediction model
 - [ ] Integration with proteomics data
@@ -466,3 +479,4 @@ We welcome contributions! Please:
 Made with ❤️ for reproducible cancer immunology research
 
 </div>
+
