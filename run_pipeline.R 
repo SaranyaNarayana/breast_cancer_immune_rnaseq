@@ -1,0 +1,127 @@
+############################################################
+# run_pipeline.R
+# Project: Breast Cancer Immune Heterogeneity
+# Author:  Saranya Narayana
+#
+# PURPOSE:
+#   Master script to run the full analysis pipeline in order.
+#   Each step is logged separately. Run this from the project root.
+#
+# USAGE:
+#   Rscript run_pipeline.R                    # run all steps
+#   Rscript run_pipeline.R --from 03          # resume from step 03
+#   Rscript run_pipeline.R --only 06,07       # run specific steps
+#
+# STEPS:
+#   01  Download TCGA-BRCA RNA-seq data
+#   02  QC and clinical filtering
+#   03  Preprocessing and normalisation
+#   04  Clinical data plots
+#   05  Immune deconvolution (GSVA, ssGSEA, quanTIseq, MCP, EPIC, xCell)
+#   06  Consensus clustering per PAM50 subtype
+#   07  Differential expression and pathway analysis
+############################################################
+
+##  0. Setup 
+PROJECT_ROOT <- normalizePath(dirname(sys.frame(1)$ofile), mustWork = FALSE)
+if (PROJECT_ROOT == "") PROJECT_ROOT <- getwd()
+setwd(PROJECT_ROOT)
+
+# Parse command-line arguments
+args        <- commandArgs(trailingOnly = TRUE)
+from_step   <- 1L
+only_steps  <- NULL
+
+for (i in seq_along(args)) {
+  if (args[i] == "--from" && i < length(args))
+    from_step <- as.integer(args[i + 1])
+  if (args[i] == "--only" && i < length(args))
+    only_steps <- as.integer(strsplit(args[i + 1], ",")[[1]])
+}
+
+##  1. Restore package environment (renv) 
+if (file.exists("renv/activate.R")) {
+  message("[pipeline] Restoring renv environment...")
+  source("renv/activate.R")
+  renv::restore(prompt = FALSE)
+} else {
+  message("[pipeline] No renv lockfile found — using current library.")
+}
+
+##  2. Required directories 
+dirs <- c(
+  "logs",
+  "data/raw",
+  "data/processed",
+  "data/processed/immune",
+  "data/processed/clustering",
+  "data/processed/DE",
+  "results/figures/preprocessing_plots",
+  "results/figures/clinical_overview",
+  "results/figures/immune",
+  "results/figures/clustering",
+  "results/figures/DE",
+  "results/figures/pathway",
+  "results/tables/clustering",
+  "results/tables/DE",
+  "results/tables/pathway",
+  "results/consensus_clustering"
+)
+invisible(lapply(dirs, dir.create, recursive = TRUE, showWarnings = FALSE))
+
+## 3. Pipeline steps 
+pipeline <- list(
+  list(id = 1L, label = "Download TCGA-BRCA data",            script = "scripts/01_download_tcga.R"),
+  list(id = 2L, label = "QC and clinical filtering",          script = "scripts/02_qc_filtering.R"),
+  list(id = 3L, label = "Preprocessing and normalisation",    script = "scripts/03_preprossing.R"),
+  list(id = 4L, label = "Clinical data plots",                script = "scripts/04_Clinical_data_plot.R"),
+  list(id = 5L, label = "Immune deconvolution",               script = "scripts/05_Immune_deconvolution.R"),
+  list(id = 6L, label = "Consensus clustering",               script = "scripts/06_clustering_analysis.R"),
+  list(id = 7L, label = "DE and pathway analysis",            script = "scripts/07_DE_pathway_analysis.R")
+)
+
+##  4. Run one script with timing & error trapping 
+run_step <- function(step) {
+  cat(sprintf("\n%s\n", strrep("=", 60)))
+  cat(sprintf("[pipeline] STEP %02d: %s\n", step$id, step$label))
+  cat(sprintf("[pipeline] Script : %s\n", step$script))
+  cat(sprintf("[pipeline] Started: %s\n", format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
+  cat(sprintf("%s\n", strrep("=", 60)))
+
+  if (!file.exists(step$script)) {
+    stop(sprintf("Script not found: %s", step$script))
+  }
+
+  t0 <- proc.time()
+
+  tryCatch(
+    source(step$script, local = FALSE),
+    error = function(e) {
+      cat(sprintf("\n[pipeline] ERROR in step %02d: %s\n", step$id, conditionMessage(e)))
+      cat("[pipeline] Pipeline halted. Fix the error and re-run with --from ", step$id, "\n")
+      quit(status = 1, save = "no")
+    }
+  )
+
+  elapsed <- round((proc.time() - t0)[["elapsed"]])
+  cat(sprintf("\n[pipeline] STEP %02d complete in %ds (%s)\n",
+              step$id, elapsed, format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
+}
+
+##  5. Run pipeline 
+total_start <- proc.time()
+
+for (step in pipeline) {
+  if (!is.null(only_steps)) {
+    if (!(step$id %in% only_steps)) next
+  } else {
+    if (step$id < from_step) next
+  }
+  run_step(step)
+}
+
+total_elapsed <- round((proc.time() - total_start)[["elapsed"]])
+cat(sprintf("\n%s\n", strrep("=", 60)))
+cat(sprintf("[pipeline] ALL STEPS COMPLETE  —  total time: %ds\n", total_elapsed))
+cat(sprintf("[pipeline] Finished: %s\n", format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
+cat(sprintf("%s\n", strrep("=", 60)))
