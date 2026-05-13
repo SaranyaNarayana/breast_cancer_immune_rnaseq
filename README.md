@@ -31,7 +31,7 @@ This project investigates **immune-related gene expression heterogeneity within 
 
 ✅ **A universal cytotoxic T cell programme** 
 - Genes such as NKG7, CD8A, GZMB, TBX21, GZMA is active across all PAM50 subtypes when immune infiltration is high. 
-- confirmed by pathway enrichment analysis (HALLMARK_ALLOGRAFT_REJECTION, IFN-γ response).
+- Confirmed by pathway enrichment analysis (HALLMARK_ALLOGRAFT_REJECTION, IFN-γ response).
 ---
 
 ## Table of Contents
@@ -67,7 +67,7 @@ breast_cancer_immune_rnaseq/
 ├── setup_renv.R                    # One-time environment setup
 ├── renv.lock                       # Locked package versions (auto-generated)
 │
-├── data/
+├── data/                           #git-ignored
 │   ├── raw/                        # Downloaded batch RDS files [git-ignored]
 │   └── processed/                  # Filtered and normalised objects [git-ignored]
 │       ├── immune/
@@ -195,7 +195,7 @@ breast_cancer_immune_rnaseq/
         ├── fgsea_ReactomeImmune_LumB_High_Q4_vs_Low_Q1.csv
         └── fgsea_ReactomeImmune_Normal_IC1_vs_IC2.csv
 │
-├── logs/                           # Timestamped per-script log files
+├── logs/                           # Timestamped per-script log files [git-ignored]
 ├── .gitignore
 └── README.md
 ```
@@ -267,6 +267,72 @@ Rscript run_pipeline.R --from 02
 
 ---
 
+## Workflow Overview
+```
+┌─────────────────────────────────────────────────────────────┐
+│  TCGA-BRCA RNA-seq Data (n ≈ 1,100 samples)                │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+          ┌──────────────────────┐
+          │  01_data_acquisition │
+          │  • Download RNA-seq  │
+          │  • Extract clinical  │
+          └──────────┬───────────┘
+                     │
+                     ▼
+          ┌──────────────────────┐
+          │  02_qc_filtering.R   │
+          │  • Clinical QC       │
+          │  • Deduplication     │
+          │  • PAM50 cleaning    │  
+          └──────────┬───────────┘
+                     │
+                     ▼
+          ┌─────────────────────────────┐
+          │  03_preprossing             │
+          │  • Gene filtering           │
+          │  • DESeq2 VST normalisation │
+          │  • PCA                      │
+          │  • Filtered counts          │
+          │  • Normalised matrices      │
+          │  • QC figures               │
+          └──────────┬──────────────────┘
+                     │
+                     ▼
+          ┌───────────────────────────────┐
+          │  04_Clinical_data_plot        │
+          │  • Demographic visualisations │
+          │  • clinical visualisations    │
+          └──────────┬────────────────────┘
+                     │
+                     ▼
+          ┌──────────────────────┐
+          │  05_survival         │
+          │  • Kaplan-Meier      │
+          │  • Cox regression    │
+          │  • Log-rank test     │
+          └──────────┬───────────┘
+                     │
+                     ▼
+          ┌──────────────────────┐
+          │  06_characterization │
+          │  • DESeq2 DEG        │
+          │  • Pathway analysis  │
+          │  • Immune phenotypes │
+          └──────────┬───────────┘
+                     │
+                     ▼
+          ┌──────────────────────┐
+          │  Publication Results │
+          │  • Figures           │
+          │  • Tables            │
+          │  • Summary report    │
+          └──────────────────────┘
+```
+
+---
+
 ## Requirements
 
 ### System
@@ -335,72 +401,6 @@ library(edgeR)  # must be loaded explicitly before use
 **Pipeline fails mid-run:** Check the timestamped log in `logs/` for the exact error, fix it, then resume with `--from <step>`.
 
 ---
-## Workflow Overview
-```
-┌─────────────────────────────────────────────────────────────┐
-│  TCGA-BRCA RNA-seq Data (n ≈ 1,100 samples)                │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-          ┌──────────────────────┐
-          │  01_data_acquisition │
-          │  • Download RNA-seq  │
-          │  • Extract clinical  │
-          └──────────┬───────────┘
-                     │
-                     ▼
-          ┌──────────────────────┐
-          │  02_qc_filtering.R   │
-          │  • Clinical QC       │
-          │  • Deduplication     │
-          │  • PAM50 cleaning    │  
-          └──────────┬───────────┘
-                     │
-                     ▼
-          ┌─────────────────────────────┐
-          │  03_preprossing             │
-          │  • Gene filtering           │
-          │  • DESeq2 VST normalisation │
-          │  • PCA                      │
-          │  • Filtered counts          │
-          │  • Normalised matrices      │
-          │  • QC figures               │
-          └──────────┬──────────────────┘
-                     │
-                     ▼
-          ┌───────────────────────────────┐
-          │  04_Clinical_data_plot        │
-          │  • Demographic visualisations │
-          │  • clinical visualisations    │
-          └──────────┬────────────────────┘
-                     │
-                     ▼
-          ┌──────────────────────┐
-          │  05_survival         │
-          │  • Kaplan-Meier      │
-          │  • Cox regression    │
-          │  • Log-rank test     │
-          └──────────┬───────────┘
-                     │
-                     ▼
-          ┌──────────────────────┐
-          │  06_characterization │
-          │  • DESeq2 DEG        │
-          │  • Pathway analysis  │
-          │  • Immune phenotypes │
-          └──────────┬───────────┘
-                     │
-                     ▼
-          ┌──────────────────────┐
-          │  Publication Results │
-          │  • Figures           │
-          │  • Tables            │
-          │  • Summary report    │
-          └──────────────────────┘
-```
-
----
-
 ## Analysis Scripts
 
 ### Script 01: Data Acquisition
