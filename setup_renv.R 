@@ -1,0 +1,41 @@
+############################################################
+# setup_renv.R
+# Run this ONCE before running run_pipeline.R for the first time.
+# It installs renv and snapshots all required packages.
+############################################################
+
+## Install renv if needed 
+if (!requireNamespace("renv", quietly = TRUE)) {
+  install.packages("renv")
+}
+
+## Initialise renv in the project 
+renv::init(bare = TRUE)   # bare = don't auto-discover yet
+
+##  Install all required packages 
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+# CRAN packages
+cran_pkgs <- c(
+  "dplyr", "tibble", "tidyr", "ggplot2", "patchwork",
+  "RColorBrewer", "pheatmap", "cowplot", "ggpubr",
+  "ggrepel", "scales", "umap", "factoextra", "cluster",
+  "tidyverse"
+)
+install.packages(cran_pkgs)
+
+# Bioconductor packages
+bioc_pkgs <- c(
+  "TCGAbiolinks", "SummarizedExperiment", "DESeq2",
+  "edgeR", "limma", "GSVA", "GSEABase", "msigdbr",
+  "biomaRt", "fgsea", "immunedeconv",
+  "ConsensusClusterPlus"
+)
+BiocManager::install(bioc_pkgs, ask = FALSE)
+
+##  Snapshot the environment 
+renv::snapshot()
+
+message("\n[setup] renv environment ready. Lock file written to renv.lock.")
+message("[setup] You can now run: Rscript run_pipeline.R")
